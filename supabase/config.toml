@@ -1,0 +1,7 @@
+project_id = "kaizo-center"
+
+[functions.get-hack-download]
+verify_jwt = false
+
+[functions.create-hack-upload-url]
+verify_jwt = false
