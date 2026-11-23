@@ -106,7 +106,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
         ?? user?.email
         ?? "Discord user"
     const avatarUrl = user?.user_metadata?.avatar_url
-    const avatarFallback = displayName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()
+    const avatarFallback = String(displayName).trim().split(/\s+/).slice(0, 2).map((part: string) => part[0]).join("").toUpperCase()
 
     useEffect(() => {
         if (!user) {

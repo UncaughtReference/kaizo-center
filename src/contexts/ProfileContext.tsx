@@ -19,7 +19,6 @@ function getDiscordProfileData(user: User) {
     const discordIdentity = user.identities?.find((identity) => identity.provider === "discord")
     const identityData = discordIdentity?.identity_data as Record<string, unknown> | undefined
     const rawDiscordId = [
-        discordIdentity?.provider_id,
         identityData?.provider_id,
         identityData?.sub,
         identityData?.id,

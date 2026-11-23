@@ -96,21 +96,23 @@ export default function ProgressSection({
         setProgressLoading(true)
         setProgressError(null)
         setCurrentProgress(null)
-        void supabase.rpc("get_my_progress", { p_offset: 0, p_limit: 1000 })
-            .then(({ data, error }) => {
-                if (!isActive) return
+        void (async () => {
+            try {
+                const { data, error } = await supabase.rpc("get_my_progress", { p_offset: 0, p_limit: 1000 })
                 if (error) throw error
+                if (!isActive) return
                 const matches = ((data ?? []) as HackProgress[]).filter((entry) =>
                     entry.hack_name === hackName && entry.hack_kind === hackKind,
                 )
                 setCurrentProgress(matches.find((entry) => !entry.is_helper) ?? matches[0] ?? null)
-            })
-            .catch((error: unknown) => {
+            } catch (error: unknown) {
                 if (isActive) setProgressError(error && typeof error === "object" && "message" in error
                     ? String(error.message)
                     : "Could not load your progress.")
-            })
-            .finally(() => { if (isActive) setProgressLoading(false) })
+            } finally {
+                if (isActive) setProgressLoading(false)
+            }
+        })()
 
         return () => { isActive = false }
     }, [hackName, hackKind, discordId, user?.id])

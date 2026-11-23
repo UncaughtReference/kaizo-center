@@ -12,7 +12,6 @@ import {
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -250,8 +249,9 @@ export default function HackSubmissionDialog({
             const selectedDifficulty = Number(difficulty)
             const submissionStatus = profile.role === 1 || profile.role === 2 ? 0 : 1
 
-            const insertData = isCoop
-                ? {
+            let insertedHack: Hack | CoopHack
+            if (isCoop) {
+                const { data: inserted, error: insertError } = await supabase.from("coop_hacks").insert({
                     name: hackName,
                     upload_date: new Date().toISOString(),
                     creation_date: createdAt,
@@ -262,8 +262,11 @@ export default function HackSubmissionDialog({
                     images: imageData,
                     zip: patchName,
                     videos: videoData,
-                }
-                : {
+                }).select("*").single()
+                if (insertError) throw insertError
+                insertedHack = inserted as CoopHack
+            } else {
+                const { data: inserted, error: insertError } = await supabase.from("hacks").insert({
                     name: hackName,
                     upload_date: new Date().toISOString(),
                     creation_date: createdAt,
@@ -276,14 +279,12 @@ export default function HackSubmissionDialog({
                     images: imageData,
                     bps: patchName,
                     videos: videoData,
-                }
+                }).select("*").single()
+                if (insertError) throw insertError
+                insertedHack = inserted as Hack
+            }
 
-            const { data: inserted, error: insertError } = isCoop
-                ? await supabase.from("coop_hacks").insert(insertData).select("*").single()
-                : await supabase.from("hacks").insert(insertData).select("*").single()
-            if (insertError) throw insertError
-
-            onSubmitted(inserted as Hack | CoopHack)
+            onSubmitted(insertedHack)
             resetForm()
             setOpen(false)
         } catch (submitError) {
