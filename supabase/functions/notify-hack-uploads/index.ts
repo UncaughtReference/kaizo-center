@@ -32,12 +32,31 @@ function getDifficultyName(value: unknown) {
     }
 }
 
+function isAuthorizedWebhook(req: Request) {
+    // Custom HTTP Request webhooks can use this dedicated shared-secret header.
+    const expectedWebhookSecret = Deno.env.get("HACK_WEBHOOK_SECRET")
+    if (
+        expectedWebhookSecret &&
+        req.headers.get("X-Hack-Webhook-Secret") === expectedWebhookSecret
+    ) return true
+
+    // The Dashboard's "Supabase Edge Functions > Add secret key" option sends
+    // the project's default secret key in `apikey`. Supabase provides the key
+    // values to Edge Functions in this built-in environment variable.
+    const suppliedApiKey = req.headers.get("apikey")
+    if (!suppliedApiKey) return false
+    try {
+        const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}") as Record<string, unknown>
+        return typeof secretKeys.default === "string" && suppliedApiKey === secretKeys.default
+    } catch {
+        return false
+    }
+}
+
 Deno.serve(async (req: Request) => {
     if (req.method !== "POST") return jsonResponse("Method not allowed", 405)
 
-    const expectedSecret = Deno.env.get("HACK_WEBHOOK_SECRET")
-    const suppliedSecret = req.headers.get("X-Hack-Webhook-Secret")
-    if (!expectedSecret || suppliedSecret !== expectedSecret) {
+    if (!isAuthorizedWebhook(req)) {
         return jsonResponse("Unauthorized", 401)
     }
 
@@ -69,32 +88,38 @@ Deno.serve(async (req: Request) => {
     )
     if (!becamePublic) return jsonResponse("No public release to announce", 200)
 
-    const discordWebhookUrl = Deno.env.get("DISCORD_HACK_WEBHOOK_URL")
+    const discordBotToken = Deno.env.get("DISCORD_BOT_TOKEN")
+    const discordChannelId = Deno.env.get("DISCORD_CHANNEL_ID")
     const siteUrl = Deno.env.get("HACK_SITE_URL")?.replace(/\/+$/, "")
-    if (!discordWebhookUrl || !siteUrl) {
-        console.error("Missing Discord webhook or public site URL secret.")
+    if (!discordBotToken || !discordChannelId || !/^\d{17,20}$/.test(discordChannelId) || !siteUrl) {
+        console.error("Missing or invalid Discord bot, channel, or public site configuration.")
         return jsonResponse("Notification service is not configured", 500)
     }
 
     const isCoop = payload.table === "coop_hacks"
     const kindLabel = isCoop ? "Co-op hack" : "Hack"
     const route = isCoop ? "coop-hacks" : "hacks"
+    const displayName = record.name.length > 300 ? `${record.name.slice(0, 297)}...` : record.name
     const hackUrl = `${siteUrl}/${route}/${encodeURIComponent(record.name)}`
     const starCount = typeof record.star_count === "number" ? record.star_count : "?"
     const difficulty = getDifficultyName(record.difficulty)
+    const content = `New ${kindLabel} released: **${displayName}**\nDifficulty: ${difficulty}\n\u{2B50} ${starCount}\n${hackUrl}`
 
     try {
-        const discordResponse = await fetch(discordWebhookUrl, {
+        const discordResponse = await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Authorization": `Bot ${discordBotToken}`,
+                "Content-Type": "application/json",
+            },
             body: JSON.stringify({
-                content: `New ${kindLabel} released: **${record.name}**\nDifficulty: ${difficulty}\n⭐ ${starCount}\n${hackUrl}`,
+                content,
                 allowed_mentions: { parse: [] }, // prevent pings
             }),
         })
 
         if (!discordResponse.ok) {
-            console.error(`Discord notification failed with HTTP ${discordResponse.status}.`)
+            console.error(`Discord bot message failed with HTTP ${discordResponse.status}.`)
             return jsonResponse("Failed to send Discord notification", 502)
         }
 
