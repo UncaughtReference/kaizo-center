@@ -12,6 +12,7 @@ import { useProfile } from "@/contexts/ProfileContext"
 import { Separator } from "@/components/ui/separator"
 import HackSortSelect from "@/components/HackSortSelect"
 import { sortHacks, type HackSortOption } from "@/lib/hackSorting"
+import RejectSubmissionDialog from "@/components/RejectSubmissionDialog"
 
 export default function Hacks({ onNavigate }: { onNavigate: (href: string) => void }) {
     const { profile, user } = useProfile()
@@ -24,7 +25,7 @@ export default function Hacks({ onNavigate }: { onNavigate: (href: string) => vo
     const [reviewError, setReviewError] = useState<string | null>(null)
     const [workingId, setWorkingId] = useState<number | null>(null)
 
-    async function moderateHack(hack: Hack, status: 0 | 2) {
+    async function moderateHack(hack: Hack, status: 0 | 2, rejectionMessage: string | null = null) {
         setWorkingId(hack.id)
         setReviewError(null)
         try {
@@ -33,14 +34,17 @@ export default function Hacks({ onNavigate }: { onNavigate: (href: string) => vo
                 p_id: hack.id,
                 p_name: hack.name,
                 p_status: status,
+                p_rejection_message: rejectionMessage,
             })
             if (rpcError) throw rpcError
             if (!data) throw new Error("The hack could not be found to update.")
             setHacks((current) => current.map((item) => item.id === hack.id ? { ...item, status } : item))
+            return true
         } catch (moderationError) {
             setReviewError(moderationError && typeof moderationError === "object" && "message" in moderationError
                 ? String(moderationError.message)
                 : "Could not update the hack status.")
+            return false
         } finally {
             setWorkingId(null)
         }
@@ -157,7 +161,12 @@ export default function Hacks({ onNavigate }: { onNavigate: (href: string) => vo
                             </div>
                             <div className="flex shrink-0 gap-2 sm:flex-col">
                                 <Button className="flex-1 sm:flex-none" disabled={workingId === hack.id} onClick={() => void moderateHack(hack, 0)}>Approve</Button>
-                                <Button className="flex-1 sm:flex-none" variant="destructive" disabled={workingId === hack.id} onClick={() => void moderateHack(hack, 2)}>Reject</Button>
+                                <RejectSubmissionDialog
+                                    itemType="hack"
+                                    itemName={hack.name}
+                                    disabled={workingId === hack.id}
+                                    onReject={(message) => moderateHack(hack, 2, message)}
+                                />
                             </div>
                         </div>
                     ))}

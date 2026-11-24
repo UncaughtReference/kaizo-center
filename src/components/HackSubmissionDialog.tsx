@@ -26,6 +26,7 @@ import type { HackAuthor } from "@/types/HackAuthor"
 import { useProfile } from "@/contexts/ProfileContext"
 import AuthorNameInput from "@/components/AuthorNameInput"
 import { fetchVisibleUsers, type VisibleSiteUser } from "@/lib/userDirectory"
+import { normalizeHackName } from "@/lib/utils"
 
 type HackKind = "hack" | "coop"
 type ImageDraft = { id: string; file: File }
@@ -38,6 +39,24 @@ const difficultyOptions = [
     { label: "Normal Kaizo", value: 1 },
     { label: "Super Kaizo", value: 2 },
 ]
+
+async function hackNameAlreadyExists(name: string, kind: HackKind) {
+    const table = kind === "coop" ? "coop_hacks" : "hacks"
+    const normalizedName = normalizeHackName(name)
+    const pageSize = 1000
+
+    for (let from = 0; ; from += pageSize) {
+        const { data, error } = await supabase
+            .from(table)
+            .select("name")
+            .range(from, from + pageSize - 1)
+
+        if (error) throw error
+        const page = (data ?? []) as { name: string }[]
+        if (page.some((hack) => normalizeHackName(hack.name) === normalizedName)) return true
+        if (page.length < pageSize) return false
+    }
+}
 
 function newAuthor(): AuthorDraft {
     return {
@@ -258,6 +277,9 @@ export default function HackSubmissionDialog({
             if (!session) throw new Error("Sign in with Discord before submitting a hack.")
             if (profileLoading || !profile) throw new Error("Your profile is still loading. Refresh and try again.")
             if (profile.role === 3) throw new Error("Banned accounts cannot upload hacks.")
+            if (await hackNameAlreadyExists(hackName, isCoop ? "coop" : "hack")) {
+                throw new Error(`A ${isCoop ? "co-op hack" : "hack"} with this name already exists.`)
+            }
 
             const imageNames: string[] = []
             for (const image of images) {
@@ -284,6 +306,7 @@ export default function HackSubmissionDialog({
             let insertedHack: Hack | CoopHack
             if (isCoop) {
                 const { data: inserted, error: insertError } = await supabase.from("coop_hacks").insert({
+                    submitted_by: session.user.id,
                     name: hackName,
                     upload_date: new Date().toISOString(),
                     creation_date: createdAt,
@@ -300,6 +323,7 @@ export default function HackSubmissionDialog({
                 insertedHack = inserted as CoopHack
             } else {
                 const { data: inserted, error: insertError } = await supabase.from("hacks").insert({
+                    submitted_by: session.user.id,
                     name: hackName,
                     upload_date: new Date().toISOString(),
                     creation_date: createdAt,

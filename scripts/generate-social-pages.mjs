@@ -7,6 +7,16 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 const distRoot = path.join(projectRoot, "dist")
 const supabaseUrl = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "")
 const publishableKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const template = await readFile(path.join(distRoot, "index.html"), "utf8")
+
+// GitHub Pages serves a 404 for client-side routes unless a matching static
+// entry point exists. Copy the app shell for the top-level routes so direct
+// visits and refreshes return HTTP 200.
+for (const route of ["account", "users", "hacks", "coop-hacks", "progress-submissions"]) {
+    const routeDirectory = path.join(distRoot, route)
+    await mkdir(routeDirectory, { recursive: true })
+    await writeFile(path.join(routeDirectory, "index.html"), template)
+}
 
 if (!supabaseUrl || !publishableKey) {
     console.warn("Skipping route-specific social pages: Supabase build variables are unavailable.")
@@ -18,7 +28,6 @@ const [owner, repo] = repository.split("/")
 const siteBase = (process.env.VITE_SITE_URL || `https://${owner.toLowerCase()}.github.io/${repo}/`).replace(/\/$/, "")
 const supabase = createClient(supabaseUrl, publishableKey)
 const basePath = "/kaizo-center/"
-const template = await readFile(path.join(distRoot, "index.html"), "utf8")
 function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (character) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",

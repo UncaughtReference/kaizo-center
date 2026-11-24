@@ -7,6 +7,7 @@ import HackStatusBadge from "@/components/HackStatusBadge"
 import { supabase } from "@/lib/supabase"
 import type { HackProgress } from "@/types/Progress"
 import { resolveProfileDisplayNames } from "@/lib/displayNames"
+import RejectSubmissionDialog from "@/components/RejectSubmissionDialog"
 
 function getErrorMessage(error: unknown) {
     return error && typeof error === "object" && "message" in error
@@ -93,21 +94,24 @@ export default function ProgressSubmissions({ onNavigate }: { onNavigate: (href:
         return () => { isActive = false }
     }, [profile?.role, profileLoading])
 
-    async function moderateSubmission(submission: HackProgress, status: 0 | 2) {
+    async function moderateSubmission(submission: HackProgress, status: 0 | 2, rejectionMessage: string | null = null) {
         setWorkingId(submission.id)
         setError(null)
         try {
             const { data, error: rpcError } = await supabase.rpc("moderate_progress", {
                 p_progress_id: submission.id,
                 p_status: status,
+                p_rejection_message: rejectionMessage,
             })
             if (rpcError) throw rpcError
             if (!data) throw new Error("This progress submission could not be found.")
             setSubmissions((current) => status === 0
                 ? current.filter((item) => item.id !== submission.id)
                 : current.map((item) => item.id === submission.id ? { ...item, status } : item))
+            return true
         } catch (moderationError) {
             setError(getErrorMessage(moderationError))
+            return false
         } finally {
             setWorkingId(null)
         }
@@ -164,7 +168,12 @@ export default function ProgressSubmissions({ onNavigate }: { onNavigate: (href:
                     </CardContent>
                     <CardFooter className="gap-2">
                         <Button disabled={workingId === submission.id} onClick={() => void moderateSubmission(submission, 0)}>Approve</Button>
-                        <Button variant="destructive" disabled={workingId === submission.id} onClick={() => void moderateSubmission(submission, 2)}>Reject</Button>
+                        <RejectSubmissionDialog
+                            itemType="progress submission"
+                            itemName={submission.hack_name}
+                            disabled={workingId === submission.id}
+                            onReject={(message) => moderateSubmission(submission, 2, message)}
+                        />
                     </CardFooter>
                 </Card>
             ))}

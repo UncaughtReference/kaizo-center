@@ -11,6 +11,7 @@ import { useProfile } from "@/contexts/ProfileContext"
 import HackSortSelect from "@/components/HackSortSelect"
 import { sortHacks, type HackSortOption } from "@/lib/hackSorting"
 import { Separator } from "../ui/separator"
+import RejectSubmissionDialog from "@/components/RejectSubmissionDialog"
 
 export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) => void }) {
     const { profile, user } = useProfile()
@@ -22,7 +23,7 @@ export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) =
     const [reviewError, setReviewError] = useState<string | null>(null)
     const [workingName, setWorkingName] = useState<string | null>(null)
 
-    async function moderateHack(hack: CoopHack, status: 0 | 2) {
+    async function moderateHack(hack: CoopHack, status: 0 | 2, rejectionMessage: string | null = null) {
         setWorkingName(hack.name)
         setReviewError(null)
         try {
@@ -31,14 +32,17 @@ export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) =
                 p_id: 0,
                 p_name: hack.name,
                 p_status: status,
+                p_rejection_message: rejectionMessage,
             })
             if (rpcError) throw rpcError
             if (!data) throw new Error("The co-op hack could not be found to update.")
             setHacks((current) => current.map((item) => item.name === hack.name ? { ...item, status } : item))
+            return true
         } catch (moderationError) {
             setReviewError(moderationError && typeof moderationError === "object" && "message" in moderationError
                 ? String(moderationError.message)
                 : "Could not update the co-op hack status.")
+            return false
         } finally {
             setWorkingName(null)
         }
@@ -139,7 +143,12 @@ export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) =
                             </div>
                             <div className="flex shrink-0 gap-2 sm:flex-col">
                                 <Button className="flex-1 sm:flex-none" disabled={workingName === hack.name} onClick={() => void moderateHack(hack, 0)}>Approve</Button>
-                                <Button className="flex-1 sm:flex-none" variant="destructive" disabled={workingName === hack.name} onClick={() => void moderateHack(hack, 2)}>Reject</Button>
+                                <RejectSubmissionDialog
+                                    itemType="co-op hack"
+                                    itemName={hack.name}
+                                    disabled={workingName === hack.name}
+                                    onReject={(message) => moderateHack(hack, 2, message)}
+                                />
                             </div>
                         </div>
                     ))}
