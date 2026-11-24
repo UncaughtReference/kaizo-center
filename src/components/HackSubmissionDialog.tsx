@@ -107,6 +107,21 @@ export default function HackSubmissionDialog({
     }, [open])
 
     useEffect(() => {
+        if (!open || !profile?.username.trim()) return
+        setAuthors((current) => {
+            if (current.some((author) => author.name.trim())) return current
+            const [first, ...rest] = current
+            const submitterAuthor: AuthorDraft = {
+                ...(first ?? newAuthor()),
+                name: profile.username.trim(),
+                allow_edit: true,
+                allow_delete: true,
+            }
+            return [submitterAuthor, ...rest]
+        })
+    }, [open, profile?.username])
+
+    useEffect(() => {
         if (!previewImage) return
         return () => URL.revokeObjectURL(previewImage.src)
     }, [previewImage])
@@ -198,13 +213,16 @@ export default function HackSubmissionDialog({
         setError(null)
 
         const hackName = name.trim()
-        const cleanAuthors = authors
+        let cleanAuthors = authors
             .map((author) => ({
                 name: author.name.trim(),
                 allow_edit: author.allow_edit,
                 allow_delete: author.allow_delete,
             }))
             .filter((author) => author.name.length > 0)
+        if (cleanAuthors.length === 0 && profile?.username.trim()) {
+            cleanAuthors = [{ name: profile.username.trim(), allow_edit: true, allow_delete: true }]
+        }
         const cleanVideos = videos.map((video) => video.trim()).filter(Boolean)
         const parsedStarCount = Number(starCount)
         const selectedMainImage = images.find((image) => image.id === mainImageId)
@@ -340,7 +358,7 @@ export default function HackSubmissionDialog({
                                         <div className="flex items-end gap-2">
                                             <label className="flex flex-1 flex-col gap-1.5 text-sm">
                                                 Author {index + 1}
-                                                <AuthorNameInput value={author.name} onChange={(value) => updateAuthor(author.id, { name: value })} users={siteUsers} required={index === 0} />
+                                                <AuthorNameInput value={author.name} onChange={(value) => updateAuthor(author.id, { name: value })} users={siteUsers} />
                                             </label>
                                             {authors.length > 1 && (
                                                 <Button type="button" variant="outline" size="icon" aria-label={`Remove author ${index + 1}`} onClick={() => setAuthors((current) => current.filter((item) => item.id !== author.id))}>

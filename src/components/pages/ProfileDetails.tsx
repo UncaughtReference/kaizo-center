@@ -12,6 +12,7 @@ import type { PublicHackProgress } from "@/types/Progress"
 import XpProgress from "@/components/XpProgress"
 import { resolveProfileDisplayNames } from "@/lib/displayNames"
 import { usePageMetadata } from "@/lib/pageMetadata"
+import { useProfile } from "@/contexts/ProfileContext"
 
 type ProfileProgress = PublicHackProgress & { hack_star_count?: number }
 
@@ -45,7 +46,9 @@ async function fetchApprovedRows<T>(table: "hacks" | "coop_hacks"): Promise<T[]>
 }
 
 export default function ProfileDetails({ username, onNavigate }: { username: string; onNavigate: (href: string) => void }) {
+    const { profile: viewerProfile } = useProfile()
     const [profileName, setProfileName] = useState<string | null>(null)
+    const [privateProfile, setPrivateProfile] = useState(false)
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
     const [profileXp, setProfileXp] = useState(0)
     const [profileCoopXp, setProfileCoopXp] = useState(0)
@@ -75,6 +78,25 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                         setProfileCoopXp(0)
                         setXpPrivate(false)
                         setProgressPrivate(false)
+                        setPrivateProfile(false)
+                    }
+                    return
+                }
+
+                const isOwner = viewerProfile?.username.trim().toLocaleLowerCase()
+                    === String(selected.username).trim().toLocaleLowerCase()
+                if (selected.private_profile === true && !isOwner) {
+                    if (isActive) {
+                        setPrivateProfile(true)
+                        setProfileName(null)
+                        setAvatarUrl(null)
+                        setProfileXp(0)
+                        setProfileCoopXp(0)
+                        setXpPrivate(false)
+                        setProgressPrivate(false)
+                        setHacks([])
+                        setCoopHacks([])
+                        setProgress([])
                     }
                     return
                 }
@@ -134,6 +156,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                 setProfileCoopXp(typeof selected.coop_xp === "number" ? selected.coop_xp : 0)
                 setXpPrivate(selected.private_xp === true)
                 setProgressPrivate(isProgressPrivate)
+                setPrivateProfile(false)
                 setHacks(allHacks.filter((hack) => hasAuthor(hack.authors)))
                 setCoopHacks(allCoopHacks.filter((hack) => hasAuthor(hack.authors)))
                 setProgress(displayProgress)
@@ -146,7 +169,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
 
         void loadProfileAndHacks()
         return () => { isActive = false }
-    }, [username])
+    }, [username, viewerProfile?.username])
 
     const coopNames = useMemo(() => new Set(coopHacks.map((hack) => hack.name.toLocaleLowerCase())), [coopHacks])
     usePageMetadata({
@@ -156,6 +179,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
 
     if (loading) return <div className="mx-auto max-w-5xl py-8"><p className="text-muted-foreground">Loading profile...</p></div>
     if (error) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile</h1><p role="alert" className="mt-3 text-destructive">Could not load profile: {error}</p></div>
+    if (privateProfile) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold tracking-tight text-white">Private profile</h1><p className="mt-3 text-muted-foreground">This user has made their profile private.</p></div>
     if (!profileName) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile not found! They may be a ghost!!</h1><p className="mt-3 text-muted-foreground">No profile matches &quot;{username}&quot;.</p></div>
 
     return (

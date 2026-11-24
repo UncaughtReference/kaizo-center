@@ -59,7 +59,7 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
                 }
 
                 if (!isActive) return
-                setProfiles(allProfiles)
+                setProfiles(allProfiles.filter((person) => person.private_profile !== true))
             } catch (loadError) {
                 if (isActive) setError(getErrorMessage(loadError))
             } finally {

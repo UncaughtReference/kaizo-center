@@ -35,6 +35,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
     const [progressError, setProgressError] = useState<string | null>(null)
     const [privacySaving, setPrivacySaving] = useState(false)
     const [privacyError, setPrivacyError] = useState<string | null>(null)
+    const [privacyOverrides, setPrivacyOverrides] = useState<Partial<Record<"private_xp" | "private_progress" | "private_profile", boolean>>>({})
     const [displayNameDraft, setDisplayNameDraft] = useState("")
     const [displayNameSaving, setDisplayNameSaving] = useState(false)
     const [displayNameError, setDisplayNameError] = useState<string | null>(null)
@@ -87,17 +88,21 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
         if (!profile) return
         setPrivacySaving(true)
         setPrivacyError(null)
-        const nextPrivateXp = setting === "private_xp" ? checked : Boolean(profile.private_xp)
-        const nextPrivateProgress = setting === "private_progress" ? checked : Boolean(profile.private_progress)
-        const nextPrivateProfile = setting === "private_profile" ? checked : Boolean(profile.private_profile)
-        const { data, error: updateError } = await supabase.rpc("update_profile_privacy", {
-            p_private_xp: nextPrivateXp,
-            p_private_progress: nextPrivateProgress,
-            p_private_profile: nextPrivateProfile,
-        })
-        if (updateError) setPrivacyError(updateError.message)
-        else if (!data) setPrivacyError("Your privacy settings could not be updated.")
-        else {
+        const nextValues = {
+            private_xp: privacyOverrides.private_xp ?? Boolean(profile.private_xp),
+            private_progress: privacyOverrides.private_progress ?? Boolean(profile.private_progress),
+            private_profile: privacyOverrides.private_profile ?? Boolean(profile.private_profile),
+            [setting]: checked,
+        }
+        try {
+            const { data, error: updateError } = await supabase.rpc("update_profile_privacy", {
+                p_private_xp: nextValues.private_xp,
+                p_private_progress: nextValues.private_progress,
+                p_private_profile: nextValues.private_profile,
+            })
+            if (updateError) throw updateError
+            if (!data) throw new Error("Your privacy settings could not be updated.")
+            setPrivacyOverrides(nextValues)
             try {
                 await refreshProfile()
             } catch (refreshError) {
@@ -105,9 +110,18 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                     ? String(refreshError.message)
                     : "Your settings were saved, but your profile could not be refreshed.")
             }
+        } catch (updateError) {
+            setPrivacyError(updateError && typeof updateError === "object" && "message" in updateError
+                ? String(updateError.message)
+                : "Your privacy settings could not be updated.")
+        } finally {
+            setPrivacySaving(false)
         }
-        setPrivacySaving(false)
     }
+
+    const privateXp = privacyOverrides.private_xp ?? Boolean(profile?.private_xp)
+    const privateProgress = privacyOverrides.private_progress ?? Boolean(profile?.private_progress)
+    const privateProfile = privacyOverrides.private_profile ?? Boolean(profile?.private_profile)
 
     async function saveDisplayName() {
         if (!profile) return
@@ -362,7 +376,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                             <label className="flex cursor-pointer items-start gap-3">
                                 <Checkbox
                                     id="private-xp"
-                                    checked={Boolean(profile?.private_xp)}
+                                    checked={privateXp}
                                     disabled={!profile || privacySaving}
                                     onCheckedChange={(checked) => void updatePrivacySetting("private_xp", checked === true)}
                                 />
@@ -373,7 +387,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                             <label className="flex cursor-pointer items-start gap-3">
                                 <Checkbox
                                     id="private-progress"
-                                    checked={Boolean(profile?.private_progress)}
+                                    checked={privateProgress}
                                     disabled={!profile || privacySaving}
                                     onCheckedChange={(checked) => void updatePrivacySetting("private_progress", checked === true)}
                                 />
@@ -384,7 +398,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                             <label className="flex cursor-pointer items-start gap-3">
                                 <Checkbox
                                     id="private-profile"
-                                    checked={Boolean(profile?.private_profile)}
+                                    checked={privateProfile}
                                     disabled={!profile || privacySaving}
                                     onCheckedChange={(checked) => void updatePrivacySetting("private_profile", checked === true)}
                                 />
