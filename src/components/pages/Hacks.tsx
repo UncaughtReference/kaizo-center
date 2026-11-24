@@ -14,7 +14,7 @@ import HackSortSelect from "@/components/HackSortSelect"
 import { sortHacks, type HackSortOption } from "@/lib/hackSorting"
 
 export default function Hacks({ onNavigate }: { onNavigate: (href: string) => void }) {
-    const { profile } = useProfile()
+    const { profile, user } = useProfile()
     const [hacks, setHacks] = useState<Hack[]>([])
     const [coopHackNames, setCoopHackNames] = useState<Set<string>>(new Set())
     const [query, setQuery] = useState("")
@@ -119,13 +119,13 @@ export default function Hacks({ onNavigate }: { onNavigate: (href: string) => vo
                 <h1 className="text-3xl font-bold tracking-tight text-white">Hacks</h1>
                 {profile?.role === 3 ? (
                     <p className="text-sm text-destructive">Banned accounts cannot submit hacks.</p>
-                ) : (
+                ) : user ? (
                     <HackSubmissionDialog
                         kind="hack"
                         onNavigate={onNavigate}
                         onSubmitted={(submitted) => setHacks((current) => [submitted as Hack, ...current])}
                     />
-                )}
+                ) : null}
             </header>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="relative w-full max-w-xl">

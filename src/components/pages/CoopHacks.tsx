@@ -15,7 +15,7 @@ import { sortHacks, type HackSortOption } from "@/lib/hackSorting"
 import { Separator } from "../ui/separator"
 
 export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) => void }) {
-    const { profile } = useProfile()
+    const { profile, user } = useProfile()
     const [hacks, setHacks] = useState<CoopHack[]>([])
     const [query, setQuery] = useState("")
     const [sortOption, setSortOption] = useState<HackSortOption>("upload-desc")
@@ -101,13 +101,13 @@ export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) =
                 <h1 className="text-3xl font-bold tracking-tight text-white">Co-op Hacks</h1>
                 {profile?.role === 3 ? (
                     <p className="text-sm text-destructive">Banned accounts cannot submit co-op hacks.</p>
-                ) : (
+                ) : user ? (
                     <HackSubmissionDialog
                         kind="coop"
                         onNavigate={onNavigate}
                         onSubmitted={(submitted) => setHacks((current) => [submitted as CoopHack, ...current])}
                     />
-                )}
+                ) : null}
             </header>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="relative w-full max-w-xl">
