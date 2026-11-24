@@ -13,6 +13,7 @@ export type Profile = {
     role: ProfileRole
 }
 
+// hear me out, this saves database space
 export function getProfileRoleName(role: number) {
     switch (role) {
         case 0: return "User"

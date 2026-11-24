@@ -23,6 +23,7 @@ export function getAuthors(value: unknown): HackAuthor[] {
 
     if (!isRecord(value)) return []
 
+    // w recursion
     if ("author" in value) return getAuthors(value.author)
     if ("authors" in value) return getAuthors(value.authors)
 

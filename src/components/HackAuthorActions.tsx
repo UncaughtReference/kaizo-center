@@ -38,6 +38,7 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
     onUpdated: (hack: HackRow) => void
     onDeleted: () => void
 }) {
+    // might be the biggest state wall oat
     const { profile } = useProfile()
     const myName = profile?.username.trim().toLocaleLowerCase()
     const myAuthor = getAuthors(hack.authors).find((author) => author.name.trim().toLocaleLowerCase() === myName)
@@ -107,7 +108,7 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
         try {
             response = await fetch(data.url, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: file })
         } catch {
-            throw new Error("Could not reach the hackfiles R2 upload URL. Check the bucket CORS settings.")
+            throw new Error("Could not reach the hackfiles R2 upload URL! Report this to UncaughtReference please.")
         }
         if (!response.ok) {
             const details = (await response.text().catch(() => "")).trim().slice(0, 500)
@@ -286,7 +287,7 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
                         </div>)}
                         {videos.length < 3 && <Button type="button" variant="outline" className="self-start" onClick={() => setVideos((current) => [...current, ""])}><Plus />Add video</Button>}
                     </fieldset>
-                    <p className="text-xs text-muted-foreground">The hack name stays the same so its storage folder remains valid.</p>
+                    <p className="text-xs text-muted-foreground">The hack name stays the same.</p>
                     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                     <DialogFooter><Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save changes"}</Button></DialogFooter>
                 </form>

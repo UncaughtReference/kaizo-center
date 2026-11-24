@@ -29,6 +29,7 @@ export default function ProgressSection({
     hackKind: ProgressHackKind
     starCount: number
 }) {
+    // w state wall
     const { profile, discordId, user } = useProfile()
     const [progressStars, setProgressStars] = useState("")
     const [progressVideos, setProgressVideos] = useState([""])

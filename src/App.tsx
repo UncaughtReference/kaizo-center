@@ -22,6 +22,7 @@ const routeFromLocation = () => {
 }
 
 export default function App() {
+    // wall of stateeee
     const [pathname, setPathname] = useState(routeFromLocation)
     const hackDetailsMatch = pathname.match(/^\/hacks\/(.+)$/)
     const hackName = hackDetailsMatch ? decodeURIComponent(hackDetailsMatch[1]) : null
@@ -30,12 +31,14 @@ export default function App() {
     const profileDetailsMatch = pathname.match(/^\/profiles\/(.+)$/)
     const profileUsername = profileDetailsMatch ? decodeURIComponent(profileDetailsMatch[1]) : null
 
+    // pathname handling
     useEffect(() => {
         const syncPathname = () => setPathname(routeFromLocation())
         window.addEventListener("popstate", syncPathname)
         return () => window.removeEventListener("popstate", syncPathname)
     }, [])
 
+    // titles
     useEffect(() => {
         if (hackDetailsMatch || coopHackDetailsMatch || profileDetailsMatch) return
         const titles: Record<string, string> = {

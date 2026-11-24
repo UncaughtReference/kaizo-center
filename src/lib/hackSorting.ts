@@ -13,6 +13,7 @@ type SortableHack = {
     star_count: number
 }
 
+// w extends, love this feature
 export function sortHacks<T extends SortableHack>(hacks: T[], option: HackSortOption) {
     const [field, direction] = option.split("-") as ["name" | "creation" | "upload" | "difficulty" | "stars", "asc" | "desc"]
     const multiplier = direction === "asc" ? 1 : -1

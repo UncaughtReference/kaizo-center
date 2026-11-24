@@ -156,7 +156,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
 
     if (loading) return <div className="mx-auto max-w-5xl py-8"><p className="text-muted-foreground">Loading profile...</p></div>
     if (error) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile</h1><p role="alert" className="mt-3 text-destructive">Could not load profile: {error}</p></div>
-    if (!profileName) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile not found</h1><p className="mt-3 text-muted-foreground">No profile matches &quot;{username}&quot;.</p></div>
+    if (!profileName) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile not found! They may be a ghost!!</h1><p className="mt-3 text-muted-foreground">No profile matches &quot;{username}&quot;.</p></div>
 
     return (
         <main className="mx-auto flex max-w-5xl flex-col gap-7 py-8">

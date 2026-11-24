@@ -22,6 +22,7 @@ function formatDate(value: string) {
     return `${year}-${day}-${month}`
 }
 
+// should probably be in a utils file but whatever
 function getDifficultyName(value: number) {
     switch (value) {
         case 0: return "Light Kaizo"

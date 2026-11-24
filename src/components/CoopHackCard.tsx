@@ -21,7 +21,7 @@ function getDifficultyName(value: number) {
         case 0: return "Light Kaizo"
         case 1: return "Normal Kaizo"
         case 2: return "Super Kaizo"
-        default: return `Unknown (${value})`
+        default: return `Unknown (${value})` // just to be sure, but this should never happen lol
     }
 }
 

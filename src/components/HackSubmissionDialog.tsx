@@ -184,7 +184,7 @@ export default function HackSubmissionDialog({
                 body: file,
             })
         } catch {
-            throw new Error("Could not reach the hackfiles R2 upload URL. Check CORS on the hackfiles bucket for this site's origin, PUT, and the Content-Type header.")
+            throw new Error("CORS Cloudflare R2 Error, report this to UncaughtReference please")
         }
         if (!response.ok) {
             const responseDetails = (await response.text().catch(() => "")).trim().slice(0, 500)
@@ -219,7 +219,7 @@ export default function HackSubmissionDialog({
         }
         if (!difficultyOptions.some((option) => String(option.value) === difficulty)) return setError("Choose a difficulty.")
         if (!Number.isInteger(parsedStarCount) || parsedStarCount < 0 || parsedStarCount > 32767) {
-            return setError("Star count must be a whole number from 0 to 32767.")
+            return setError("Star count must be a whole number from 0 to 32767. No half-stars, sorry!!")
         }
         if (!creationDate) return setError("Choose the hack's creation date.")
         if (images.length < 1 || !selectedMainImage) return setError("Upload at least one image and select a main thumbnail.")
