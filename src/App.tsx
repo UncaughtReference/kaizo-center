@@ -48,7 +48,6 @@ export default function App() {
         }
         setPageMetadata({
             title: titles[pathname] ?? "Kaizo Center",
-            description: "Explore Kaizo hacks, track progress, earn XP, and share reviews on Kaizo Center.",
         })
     }, [pathname, hackDetailsMatch, coopHackDetailsMatch, profileDetailsMatch])
 

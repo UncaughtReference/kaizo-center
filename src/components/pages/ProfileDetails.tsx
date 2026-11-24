@@ -151,9 +151,6 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
     const coopNames = useMemo(() => new Set(coopHacks.map((hack) => hack.name.toLocaleLowerCase())), [coopHacks])
     usePageMetadata({
         title: profileName ? `${profileName} | Kaizo Center` : "Player profile | Kaizo Center",
-        description: profileName
-            ? `View ${profileName}'s Kaizo Center profile, XP, hacks, and approved progress.`
-            : "View player profiles, XP, hacks, and approved progress on Kaizo Center.",
         image: avatarUrl,
     })
 

@@ -154,8 +154,9 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
     usePageMetadata({
-        title: hack ? `${hack.name} | Kaizo Center` : "Hack | Kaizo Center",
-        description: hack?.description?.trim().slice(0, 300) || "View details, star count, progress, and reviews for this Kaizo hack on Kaizo Center.",
+        title: hack ? `${hack.name} · ${getDifficultyName(hack.difficulty)} | Kaizo Center` : "Hack | Kaizo Center",
+        image: mainImage?.url,
+        images: [mainImage?.url, ...galleryImages.map((galleryImage) => galleryImage.url)].filter((url): url is string => Boolean(url)),
     })
 
     async function downloadPatch() {

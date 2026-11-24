@@ -128,10 +128,9 @@ export default function CoopHackDetails({ name, onBack, onNavigate }: { name: st
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
     usePageMetadata({
-        title: hack ? `${hack.name} Co-op | Kaizo Center` : "Co-op hack | Kaizo Center",
-        description: hack
-            ? `Co-op Kaizo hack with ${hack.star_count} stars. View progress, completion XP, and reviews on Kaizo Center.`
-            : "View co-op hack details, progress, completion XP, and reviews on Kaizo Center.",
+        title: hack ? `${hack.name} Co-op · ${getDifficultyName(hack.difficulty)} | Kaizo Center` : "Co-op hack | Kaizo Center",
+        image: mainImage?.url,
+        images: [mainImage?.url, ...galleryImages.map((galleryImage) => galleryImage.url)].filter((url): url is string => Boolean(url)),
     })
 
     async function downloadZip() {
