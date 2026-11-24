@@ -10,6 +10,10 @@ import type { CoopHack } from "@/types/CoopHack"
 import type { Hack } from "@/types/Hack"
 import type { PublicHackProgress } from "@/types/Progress"
 import XpProgress from "@/components/XpProgress"
+import { resolveProfileDisplayNames } from "@/lib/displayNames"
+import { usePageMetadata } from "@/lib/pageMetadata"
+
+type ProfileProgress = PublicHackProgress & { hack_star_count?: number }
 
 function messageOf(error: unknown) {
     return error && typeof error === "object" && "message" in error ? String(error.message) : "An unexpected error occurred."
@@ -49,7 +53,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
     const [progressPrivate, setProgressPrivate] = useState(false)
     const [hacks, setHacks] = useState<Hack[]>([])
     const [coopHacks, setCoopHacks] = useState<CoopHack[]>([])
-    const [progress, setProgress] = useState<PublicHackProgress[]>([])
+    const [progress, setProgress] = useState<ProfileProgress[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +79,11 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                     return
                 }
 
+                const { data: publicDisplayName, error: displayNameError } = await supabase.rpc("get_public_profile_display_name", {
+                    p_username: String(selected.username),
+                })
+                if (displayNameError) throw displayNameError
+
                 const [allHacks, allCoopHacks] = await Promise.all([
                     fetchApprovedRows<Hack>("hacks"),
                     fetchApprovedRows<CoopHack>("coop_hacks"),
@@ -97,12 +106,29 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                     }
                 }
 
+                const resolvedNames = await resolveProfileDisplayNames(allProgress.flatMap((entry) => [
+                    entry.submitter_username,
+                    ...(entry.helper_names ?? []),
+                ]))
+                const hackStarCounts = new Map([
+                    ...allHacks.map((hack) => [`hack:${hack.name}`, hack.star_count] as const),
+                    ...allCoopHacks.map((hack) => [`coop:${hack.name}`, hack.star_count] as const),
+                ])
+                const displayProgress = allProgress.map((entry) => ({
+                    ...entry,
+                    hack_star_count: hackStarCounts.get(`${entry.hack_kind}:${entry.hack_name}`),
+                    submitter_username: resolvedNames.get(entry.submitter_username.toLocaleLowerCase()) ?? entry.submitter_username,
+                    helper_names: entry.helper_names?.map((name) => resolvedNames.get(name.toLocaleLowerCase()) ?? name) ?? [],
+                }))
+
                 const key = String(selected.username).trim().toLocaleLowerCase()
                 const hasAuthor = (authors: unknown) => getAuthors(authors).some((author) =>
                     author.name.trim().toLocaleLowerCase() === key,
                 )
                 if (!isActive) return
-                setProfileName(String(selected.username))
+                setProfileName(typeof publicDisplayName === "string" && publicDisplayName.trim()
+                    ? publicDisplayName.trim()
+                    : String(selected.username))
                 setAvatarUrl(typeof selected.avatar_url === "string" ? selected.avatar_url : null)
                 setProfileXp(typeof selected.xp === "number" ? selected.xp : 0)
                 setProfileCoopXp(typeof selected.coop_xp === "number" ? selected.coop_xp : 0)
@@ -110,7 +136,7 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                 setProgressPrivate(isProgressPrivate)
                 setHacks(allHacks.filter((hack) => hasAuthor(hack.authors)))
                 setCoopHacks(allCoopHacks.filter((hack) => hasAuthor(hack.authors)))
-                setProgress(allProgress)
+                setProgress(displayProgress)
             } catch (loadError) {
                 if (isActive) setError(messageOf(loadError))
             } finally {
@@ -123,6 +149,13 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
     }, [username])
 
     const coopNames = useMemo(() => new Set(coopHacks.map((hack) => hack.name.toLocaleLowerCase())), [coopHacks])
+    usePageMetadata({
+        title: profileName ? `${profileName} | Kaizo Center` : "Player profile | Kaizo Center",
+        description: profileName
+            ? `View ${profileName}'s Kaizo Center profile, XP, hacks, and approved progress.`
+            : "View player profiles, XP, hacks, and approved progress on Kaizo Center.",
+        image: avatarUrl,
+    })
 
     if (loading) return <div className="mx-auto max-w-5xl py-8"><p className="text-muted-foreground">Loading profile...</p></div>
     if (error) return <div className="mx-auto max-w-5xl py-8"><h1 className="text-3xl font-bold text-white">Profile</h1><p role="alert" className="mt-3 text-destructive">Could not load profile: {error}</p></div>
@@ -173,7 +206,11 @@ export default function ProfileDetails({ username, onNavigate }: { username: str
                         <CardHeader>
                             <CardTitle>{entry.hack_kind === "coop" ? "Co-op: " : ""}{entry.hack_name}</CardTitle>
                             <CardDescription>
-                                {entry.star_count} {entry.star_count === 1 ? "star" : "stars"} collected · Submitted {formatDate(entry.created_at)}
+                                <span className="inline-flex items-center gap-1">
+                                    {entry.star_count} / {entry.hack_star_count ?? "?"}
+                                    <img src={`${import.meta.env.BASE_URL}star.webp`} alt="stars" className="h-4 w-4 object-contain" />
+                                </span>
+                                <span>· Submitted {formatDate(entry.created_at)}</span>
                             </CardDescription>
                             {entry.is_helper && <p className="text-xs text-muted-foreground">Helper on {entry.submitter_username}'s submission</p>}
                             {!!entry.helper_names.length && <p className="text-xs text-muted-foreground">Helpers: {entry.helper_names.join(", ")}</p>}

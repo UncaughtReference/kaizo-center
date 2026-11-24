@@ -11,6 +11,7 @@ import Users from "@/components/pages/Users"
 import ProfileDetails from "@/components/pages/ProfileDetails"
 import ProgressSubmissions from "@/components/pages/ProgressSubmissions"
 import { ProfileProvider } from "@/contexts/ProfileContext"
+import { setPageMetadata } from "@/lib/pageMetadata"
 
 import { useEffect, useState } from 'react'
 
@@ -34,6 +35,22 @@ export default function App() {
         window.addEventListener("popstate", syncPathname)
         return () => window.removeEventListener("popstate", syncPathname)
     }, [])
+
+    useEffect(() => {
+        if (hackDetailsMatch || coopHackDetailsMatch || profileDetailsMatch) return
+        const titles: Record<string, string> = {
+            "/": "Kaizo Center",
+            "/hacks": "Kaizo Hacks | Kaizo Center",
+            "/coop-hacks": "Co-op Hacks | Kaizo Center",
+            "/users": "Players | Kaizo Center",
+            "/account": "Account | Kaizo Center",
+            "/progress-submissions": "Progress Submissions | Kaizo Center",
+        }
+        setPageMetadata({
+            title: titles[pathname] ?? "Kaizo Center",
+            description: "Explore Kaizo hacks, track progress, earn XP, and share reviews on Kaizo Center.",
+        })
+    }, [pathname, hackDetailsMatch, coopHackDetailsMatch, profileDetailsMatch])
 
     const navigate = (href: string) => {
         const route = href
@@ -77,7 +94,7 @@ export default function App() {
                             : pathname === "/users" ? <Users onNavigate={navigate} />
                             : pathname === "/progress-submissions" ? <ProgressSubmissions onNavigate={navigate} />
                             : pathname === "/hacks" ? <Hacks onNavigate={navigate} />
-                                : <Home />}
+                                : <Home onNavigate={navigate} />}
                 </div>
             </div>
           </ProfileProvider>

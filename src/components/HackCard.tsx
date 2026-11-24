@@ -5,6 +5,7 @@ import { type Hack } from "@/types/Hack"
 import { supabase } from "@/lib/supabase"
 import { getAuthors } from "@/lib/authors"
 import HackStatusBadge from "@/components/HackStatusBadge"
+import useDisplayNames from "@/hooks/useDisplayNames"
 
 function formatDate(value: string) {
     const date = new Date(value)
@@ -31,6 +32,8 @@ export default function HackCard({ hack, hasCoopPort, onNavigate, showStatus = f
     const imagePath = `${hack.name}/${hack.images.main}`
     const detailPath = `/hacks/${encodeURIComponent(hack.name)}`
     const [imageUrl, setImageUrl] = useState<string | null>(null)
+    const authors = getAuthors(hack.authors)
+    const displayNames = useDisplayNames(authors.map((author) => author.name))
 
     useEffect(() => {
         let isActive = true
@@ -57,8 +60,8 @@ export default function HackCard({ hack, hasCoopPort, onNavigate, showStatus = f
                     <CardContent className="p-3 sm:p-4">
                         <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                             {imageUrl && (
-                                <div className="aspect-video w-full shrink-0 overflow-hidden rounded-xl sm:aspect-auto sm:h-32 sm:w-48">
-                                    <img src={imageUrl} alt={`${hack.name} cover`} className="h-full w-full rounded-xl object-contain" />
+                                <div className="w-full shrink-0 overflow-hidden rounded-xl bg-background sm:w-48">
+                                    <img src={imageUrl} alt={`${hack.name} cover`} className="block h-auto w-full object-contain" />
                                 </div>
                             )}
                             <div className="min-w-0 flex-1">
@@ -66,7 +69,7 @@ export default function HackCard({ hack, hasCoopPort, onNavigate, showStatus = f
                                     <p className="break-words text-base sm:text-xl">{hack.name}</p>
                                     {showStatus && <HackStatusBadge status={hack.status} />}
                                 </div>
-                                <p className="break-words text-sm sm:text-base"><strong>Authors:</strong> {getAuthors(hack.authors).map((author) => author.name).join(", ")}</p>
+                                <p className="break-words text-sm sm:text-base"><strong>Authors:</strong> {authors.map((author) => displayNames[author.name.toLocaleLowerCase()] ?? author.name).join(", ")}</p>
                                 <div className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 sm:gap-4 sm:text-base">
                                     <div className="min-w-0">
                                         <div className="flex items-center">
@@ -74,7 +77,7 @@ export default function HackCard({ hack, hasCoopPort, onNavigate, showStatus = f
                                             <p className="text-base sm:text-lg">{hack.star_count}</p>
                                         </div>
                                         <p className="break-words"><strong>Difficulty:</strong> {getDifficultyName(hack.difficulty)}</p>
-                                        <p className="break-words"><strong>Completion XP Bonus:</strong> {hack.completion_bonus}</p>
+                                        <p className="break-words"><strong>Completion XP Bonus:</strong> {hack.completion_bonus ?? "To Be Determined"}</p>
                                     </div>
                                     <div className="min-w-0">
                                         <p className="break-words"><strong>Upload Date:</strong> {formatDate(hack.upload_date)}</p>

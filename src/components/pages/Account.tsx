@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { LogIn, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
@@ -16,6 +17,8 @@ import { getProfileRoleName } from "@/types/Profile"
 import type { HackProgress } from "@/types/Progress"
 import HackStatusBadge from "@/components/HackStatusBadge"
 import XpProgress from "@/components/XpProgress"
+import { resolveProfileDisplayNames } from "@/lib/displayNames"
+import { updateCachedProfileDisplayName } from "@/lib/displayNames"
 
 export default function Account({ onNavigate }: { onNavigate: (href: string) => void }) {
     const { profile, discordId, loading: profileLoading, error: profileError, refreshProfile } = useProfile()
@@ -27,11 +30,18 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
     const [yourCoopHacks, setYourCoopHacks] = useState<CoopHack[]>([])
     const [hacksLoading, setHacksLoading] = useState(false)
     const [hacksError, setHacksError] = useState<string | null>(null)
-    const [yourProgress, setYourProgress] = useState<HackProgress[]>([])
+    const [yourProgress, setYourProgress] = useState<(HackProgress & { hack_star_count?: number })[]>([])
     const [progressLoading, setProgressLoading] = useState(false)
     const [progressError, setProgressError] = useState<string | null>(null)
     const [privacySaving, setPrivacySaving] = useState(false)
     const [privacyError, setPrivacyError] = useState<string | null>(null)
+    const [displayNameDraft, setDisplayNameDraft] = useState("")
+    const [displayNameSaving, setDisplayNameSaving] = useState(false)
+    const [displayNameError, setDisplayNameError] = useState<string | null>(null)
+
+    useEffect(() => {
+        setDisplayNameDraft(profile?.display_name?.trim() || profile?.username || "")
+    }, [profile?.user_id, profile?.display_name, profile?.username])
 
     useEffect(() => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -99,12 +109,43 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
         setPrivacySaving(false)
     }
 
-    const displayName = user?.user_metadata?.global_name
-        ?? user?.user_metadata?.full_name
-        ?? user?.user_metadata?.name
-        ?? user?.user_metadata?.username
-        ?? user?.email
-        ?? "Discord user"
+    async function saveDisplayName() {
+        if (!profile) return
+        const nextName = displayNameDraft.trim()
+        if (!nextName) {
+            setDisplayNameError("Enter a display name.")
+            return
+        }
+        if (nextName.length > 40) {
+            setDisplayNameError("Display names must be 40 characters or fewer.")
+            return
+        }
+        setDisplayNameSaving(true)
+        setDisplayNameError(null)
+        const { data, error: saveError } = await supabase.rpc("update_my_display_name", { p_display_name: nextName })
+        if (saveError) setDisplayNameError(saveError.message)
+        else if (!data) setDisplayNameError("Your display name could not be updated.")
+        else {
+            updateCachedProfileDisplayName(profile.username, nextName)
+            try {
+                await refreshProfile()
+            } catch (refreshError) {
+                setDisplayNameError(refreshError && typeof refreshError === "object" && "message" in refreshError
+                    ? String(refreshError.message)
+                    : "Your display name was saved, but your profile could not be refreshed.")
+            }
+        }
+        setDisplayNameSaving(false)
+    }
+
+    const displayName = profile?.display_name?.trim()
+        || profile?.username
+        || user?.user_metadata?.global_name
+        || user?.user_metadata?.full_name
+        || user?.user_metadata?.name
+        || user?.user_metadata?.username
+        || user?.email
+        || "Discord user"
     const avatarUrl = user?.user_metadata?.avatar_url
     const avatarFallback = String(displayName).trim().split(/\s+/).slice(0, 2).map((part: string) => part[0]).join("").toUpperCase()
 
@@ -148,7 +189,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
 
                 if (!isActive) return
 
-                const normalizedDisplayName = displayName.trim().toLocaleLowerCase()
+                const normalizedDisplayName = profile?.username.trim().toLocaleLowerCase() ?? ""
                 const matchesDisplayName = (author: { name: string }) =>
                     author.name.trim().toLocaleLowerCase() === normalizedDisplayName
 
@@ -169,7 +210,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
         return () => {
             isActive = false
         }
-    }, [user?.id, displayName])
+    }, [user?.id, profile?.username])
 
     useEffect(() => {
         if (!user || profileLoading || !discordId) {
@@ -196,7 +237,35 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                     allProgress.push(...page)
                     if (page.length < pageSize) break
                 }
-                if (isActive) setYourProgress(allProgress)
+                const hackNames = [...new Set(allProgress.filter((entry) => entry.hack_kind === "hack").map((entry) => entry.hack_name))]
+                const coopHackNames = [...new Set(allProgress.filter((entry) => entry.hack_kind === "coop").map((entry) => entry.hack_name))]
+                const [hacksResult, coopHacksResult] = await Promise.all([
+                    hackNames.length
+                        ? supabase.from("hacks").select("name, star_count").in("name", hackNames)
+                        : Promise.resolve({ data: [], error: null }),
+                    coopHackNames.length
+                        ? supabase.from("coop_hacks").select("name, star_count").in("name", coopHackNames)
+                        : Promise.resolve({ data: [], error: null }),
+                ])
+                if (hacksResult.error) throw hacksResult.error
+                if (coopHacksResult.error) throw coopHacksResult.error
+                const hackStarCounts = new Map([
+                    ...(hacksResult.data ?? []).map((hack) => [`hack:${hack.name}`, hack.star_count] as const),
+                    ...(coopHacksResult.data ?? []).map((hack) => [`coop:${hack.name}`, hack.star_count] as const),
+                ])
+                const names = await resolveProfileDisplayNames(allProgress.flatMap((entry) => [
+                    ...(entry.submitter_username ? [entry.submitter_username] : []),
+                    ...(entry.helper_names ?? []),
+                ]))
+                const displayProgress = allProgress.map((entry) => ({
+                    ...entry,
+                    hack_star_count: hackStarCounts.get(`${entry.hack_kind}:${entry.hack_name}`),
+                    submitter_username: entry.submitter_username
+                        ? names.get(entry.submitter_username.toLocaleLowerCase()) ?? entry.submitter_username
+                        : entry.submitter_username,
+                    helper_names: entry.helper_names?.map((name) => names.get(name.toLocaleLowerCase()) ?? name),
+                }))
+                if (isActive) setYourProgress(displayProgress)
             } catch (loadError) {
                 if (isActive) setProgressError(loadError && typeof loadError === "object" && "message" in loadError
                     ? String(loadError.message)
@@ -238,6 +307,19 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                         </div>
                     ) : (
                         <p className="text-muted-foreground">You are not signed in.</p>
+                    )}
+                    {profile && (
+                        <div className="flex max-w-lg flex-col gap-2">
+                            <label htmlFor="site-display-name" className="text-sm font-medium">Site display name</label>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Input id="site-display-name" value={displayNameDraft} maxLength={40} onChange={(event) => setDisplayNameDraft(event.target.value)} />
+                                <Button type="button" className="shrink-0" onClick={() => void saveDisplayName()} disabled={displayNameSaving || displayNameDraft.trim() === (profile.display_name?.trim() || profile.username)}>
+                                    {displayNameSaving ? "Saving..." : "Save display name"}
+                                </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Your Discord username remains your account identity. This name is shown around the site.</p>
+                            {displayNameError && <p role="alert" className="text-sm text-destructive">{displayNameError}</p>}
+                        </div>
                     )}
                     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                     {profileLoading && user && <p className="text-sm text-muted-foreground">Creating your profile...</p>}
@@ -308,7 +390,6 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                                 />
                                 <span className="flex flex-col gap-1">
                                     <span className="text-sm font-medium">Make my profile private</span>
-                                    <span className="text-sm text-muted-foreground">Your profile will not appear in the Users list.</span>
                                 </span>
                             </label>
                             {privacySaving && <p className="text-sm text-muted-foreground">Saving privacy settings...</p>}
@@ -370,7 +451,7 @@ export default function Account({ onNavigate }: { onNavigate: (href: string) => 
                                                 <CardTitle>{entry.hack_kind === "coop" ? "Co-op: " : ""}{entry.hack_name}</CardTitle>
                                                 <HackStatusBadge status={entry.status} />
                                             </div>
-                                            <CardDescription>{entry.star_count} {entry.star_count === 1 ? "star" : "stars"} collected · Submitted {new Date(entry.created_at).toLocaleDateString()}</CardDescription>
+                                            <CardDescription className="flex flex-wrap items-center gap-1"><span className="inline-flex items-center gap-1">{entry.star_count} / {entry.hack_star_count ?? "?"}<img src={`${import.meta.env.BASE_URL}star.webp`} alt="stars" className="h-4 w-4 object-contain" /></span><span>· Submitted {new Date(entry.created_at).toLocaleDateString()}</span></CardDescription>
                                             {entry.is_helper && <p className="text-xs text-muted-foreground">Helper on {entry.submitter_username ?? "another user's"} submission</p>}
                                             {!!entry.helper_names?.length && <p className="text-xs text-muted-foreground">Helpers: {entry.helper_names.join(", ")}</p>}
                                         </CardHeader>

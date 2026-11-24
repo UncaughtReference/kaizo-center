@@ -3,6 +3,7 @@ export type ProfileRole = 0 | 1 | 2 | 3
 export type Profile = {
     user_id: string
     username: string
+    display_name?: string | null
     avatar_url?: string | null
     xp?: number
     coop_xp?: number

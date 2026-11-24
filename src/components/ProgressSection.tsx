@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase"
 import { useProfile } from "@/contexts/ProfileContext"
 import type { HackProgress, ProgressHackKind } from "@/types/Progress"
 import type { Profile } from "@/types/Profile"
+import { resolveProfileDisplayNames } from "@/lib/displayNames"
 
 function formatDate(value: string) {
     const date = new Date(value)
@@ -37,7 +38,7 @@ export default function ProgressSection({
     const [dialogOpen, setDialogOpen] = useState(false)
     const [currentProgress, setCurrentProgress] = useState<HackProgress | null>(null)
     const [progressLoading, setProgressLoading] = useState(false)
-    const [availableHelpers, setAvailableHelpers] = useState<Pick<Profile, "user_id" | "username" | "role">[]>([])
+    const [availableHelpers, setAvailableHelpers] = useState<Pick<Profile, "user_id" | "username" | "display_name" | "role">[]>([])
     const [selectedHelpers, setSelectedHelpers] = useState<string[]>([])
     const [helperSearch, setHelperSearch] = useState("")
     const [helpersLoading, setHelpersLoading] = useState(false)
@@ -52,14 +53,14 @@ export default function ProgressSection({
         void (async () => {
             try {
                 const pageSize = 1000
-                const allHelpers: Pick<Profile, "user_id" | "username" | "role">[] = []
+                const allHelpers: Pick<Profile, "user_id" | "username" | "display_name" | "role">[] = []
                 for (let from = 0; ; from += pageSize) {
-        const { data, error } = await supabase.rpc("get_visible_user_directory", {
+                    const { data, error } = await supabase.rpc("get_visible_user_directory_with_display_name", {
                         p_offset: from,
                         p_limit: pageSize,
                     })
                     if (error) throw error
-                    const page = (data ?? []) as Pick<Profile, "user_id" | "username" | "role">[]
+                    const page = (data ?? []) as Pick<Profile, "user_id" | "username" | "display_name" | "role">[]
                     allHelpers.push(...page.filter((entry) => entry.user_id && entry.user_id !== profile?.user_id && entry.role !== 3))
                     if (page.length < pageSize) break
                 }
@@ -76,13 +77,20 @@ export default function ProgressSection({
     }, [dialogOpen, hackKind, profile?.user_id, availableHelpers.length])
 
     async function loadCurrentProgress() {
-        if (!discordId) return
+        if (!discordId) return null
         const { data, error } = await supabase.rpc("get_my_progress", { p_offset: 0, p_limit: 1000 })
         if (error) throw error
         const matches = ((data ?? []) as HackProgress[]).filter((entry) =>
             entry.hack_name === hackName && entry.hack_kind === hackKind,
         )
-        setCurrentProgress(matches.find((entry) => !entry.is_helper) ?? matches[0] ?? null)
+        const current = matches.find((entry) => !entry.is_helper) ?? matches[0] ?? null
+        if (!current) {
+            setCurrentProgress(null)
+            return null
+        }
+        const names = await resolveProfileDisplayNames(current.helper_names ?? [])
+        setCurrentProgress({ ...current, helper_names: current.helper_names?.map((name) => names.get(name.toLocaleLowerCase()) ?? name) })
+        return current
     }
 
     useEffect(() => {
@@ -104,7 +112,13 @@ export default function ProgressSection({
                 const matches = ((data ?? []) as HackProgress[]).filter((entry) =>
                     entry.hack_name === hackName && entry.hack_kind === hackKind,
                 )
-                setCurrentProgress(matches.find((entry) => !entry.is_helper) ?? matches[0] ?? null)
+                const current = matches.find((entry) => !entry.is_helper) ?? matches[0] ?? null
+                if (!current) {
+                    setCurrentProgress(null)
+                    return
+                }
+                const names = await resolveProfileDisplayNames(current.helper_names ?? [])
+                setCurrentProgress({ ...current, helper_names: current.helper_names?.map((name) => names.get(name.toLocaleLowerCase()) ?? name) })
             } catch (error: unknown) {
                 if (isActive) setProgressError(error && typeof error === "object" && "message" in error
                     ? String(error.message)
@@ -116,6 +130,15 @@ export default function ProgressSection({
 
         return () => { isActive = false }
     }, [hackName, hackKind, discordId, user?.id])
+
+    useEffect(() => {
+        if (hackKind !== "coop" || !user || profile?.role === 3 || !currentProgress || currentProgress.is_helper) return
+        let isActive = true
+        void supabase.rpc("record_progress_completion_helpers", { p_progress_id: currentProgress.id }).then(({ error }) => {
+            if (isActive && error) setProgressError(`Could not sync co-op progress helpers for completion XP: ${error.message}`)
+        })
+        return () => { isActive = false }
+    }, [hackKind, user?.id, profile?.role, currentProgress?.id, currentProgress?.is_helper])
 
     function updateProgressVideo(index: number, value: string) {
         setProgressVideos((current) => current.map((video, i) => i === index ? value : video))
@@ -178,9 +201,20 @@ export default function ProgressSection({
             setHelperSearch("")
             setDialogOpen(false)
             try {
-                await loadCurrentProgress()
-            } catch {
-                setProgressError("Progress was submitted, but the latest entry could not be refreshed.")
+                const submittedProgress = await loadCurrentProgress()
+                if (hackKind === "coop" && submittedProgress) {
+                    const { error: helperError } = await supabase.rpc("record_progress_completion_helpers", {
+                        p_progress_id: submittedProgress.id,
+                    })
+                    if (helperError) throw helperError
+                }
+            } catch (refreshError) {
+                const detail = refreshError && typeof refreshError === "object" && "message" in refreshError
+                    ? ` ${String(refreshError.message)}`
+                    : ""
+                setProgressError(hackKind === "coop"
+                    ? `Progress was submitted, but helper completion bonuses could not be recorded.${detail}`
+                    : "Progress was submitted, but the latest entry could not be refreshed.")
             }
         } catch (error) {
             setProgressError(error && typeof error === "object" && "message" in error
@@ -202,7 +236,10 @@ export default function ProgressSection({
                 <Card className="max-w-xl">
                     <CardHeader>
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <CardTitle>{currentProgress.star_count} {currentProgress.star_count === 1 ? "star" : "stars"} collected</CardTitle>
+                            <CardTitle className="inline-flex items-center gap-1">
+                                {currentProgress.star_count} / {starCount}
+                                <img src={`${import.meta.env.BASE_URL}star.webp`} alt="stars" className="h-5 w-5 object-contain" />
+                            </CardTitle>
                             <HackStatusBadge status={currentProgress.status} />
                         </div>
                         <CardDescription>Submitted {currentProgress.created_at ? formatDate(currentProgress.created_at) : "date unavailable"}</CardDescription>
@@ -244,7 +281,7 @@ export default function ProgressSection({
                                     <p className="text-xs text-muted-foreground">Selected helpers will receive co-op XP if this submission is approved.</p>
                                     <Input
                                         aria-label="Search helpers"
-                                        placeholder="Search site users..."
+                                        placeholder="Search site users by display name or username..."
                                         value={helperSearch}
                                         onChange={(event) => setHelperSearch(event.target.value)}
                                     />
@@ -253,7 +290,8 @@ export default function ProgressSection({
                                             : availableHelpers.length === 0 ? <p className="text-sm text-muted-foreground">No other eligible users found.</p>
                                                 : <div className="flex max-h-40 flex-col gap-2 overflow-y-auto">
                                                     {availableHelpers
-                                                        .filter((helper) => helper.username.toLocaleLowerCase().includes(helperSearch.trim().toLocaleLowerCase()))
+                                                        .filter((helper) => helper.username.toLocaleLowerCase().includes(helperSearch.trim().toLocaleLowerCase())
+                                                            || (helper.display_name ?? "").toLocaleLowerCase().includes(helperSearch.trim().toLocaleLowerCase()))
                                                         .map((helper) => (
                                                             <label key={helper.user_id} className="flex cursor-pointer items-center gap-2 text-sm">
                                                                 <Checkbox
@@ -262,7 +300,7 @@ export default function ProgressSection({
                                                                         ? [...current, helper.user_id]
                                                                         : current.filter((id) => id !== helper.user_id))}
                                                                 />
-                                                                <span>{helper.username}</span>
+                                                                <span>{helper.display_name?.trim() || helper.username}</span>
                                                             </label>
                                                         ))}
                                                 </div>}

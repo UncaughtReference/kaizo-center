@@ -7,6 +7,10 @@ import { type Hack } from "@/types/Hack"
 import { getAuthors } from "@/lib/authors"
 import ProgressSection from "@/components/ProgressSection"
 import HackAuthorActions from "@/components/HackAuthorActions"
+import useDisplayNames from "@/hooks/useDisplayNames"
+import HackReviews from "@/components/HackReviews"
+import CompletionBonus from "@/components/CompletionBonus"
+import { usePageMetadata } from "@/lib/pageMetadata"
 
 function formatDate(value: string) {
     const date = new Date(value)
@@ -146,8 +150,13 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
     }, [name])
 
     const videos = hack?.videos?.videos ?? []
+    const authors = useDisplayNames(hack ? getAuthors(hack.authors).map((author) => author.name) : [])
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
+    usePageMetadata({
+        title: hack ? `${hack.name} | Kaizo Center` : "Hack | Kaizo Center",
+        description: hack?.description?.trim().slice(0, 300) || "View details, star count, progress, and reviews for this Kaizo hack on Kaizo Center.",
+    })
 
     async function downloadPatch() {
         if (!hack?.bps) return
@@ -197,14 +206,14 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
                                 if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
                                 event.preventDefault()
                                 onNavigate(`/profiles/${encodeURIComponent(author.name)}`)
-                            }}>{author.name}</a></span>
+                            }}>{authors[author.name.toLocaleLowerCase()] ?? author.name}</a></span>
                     ))}</p>
                     <p><strong>Difficulty:</strong> {getDifficultyName(hack.difficulty)}</p>
                     <p className="flex items-center gap-1">
                         <img src={`${import.meta.env.BASE_URL}star.webp`} alt="Stars" className="size-6 object-contain" />
                         <span>{hack.star_count}</span>
                     </p>
-                    <p><strong>Completion XP bonus:</strong> {hack.completion_bonus}</p>
+                    <CompletionBonus kind="hack" hackName={hack.name} bonus={hack.completion_bonus} onSaved={(completion_bonus) => setHack({ ...hack, completion_bonus })} />
                     <p><strong>Co-op port:</strong> {
                         coopPortStatus === "available" ? (
                             <a
@@ -285,6 +294,8 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
                     </div>
                 </section>
             )}
+
+            <HackReviews hackName={hack.name} hackKind="hack" starCount={hack.star_count} />
         </article>
     )
 }

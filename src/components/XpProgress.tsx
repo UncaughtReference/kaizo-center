@@ -34,7 +34,7 @@ export default function XpProgress({ xp }: { xp: number }) {
         <div className="flex w-full max-w-md flex-col gap-2" aria-label="Experience level">
             <div className="flex items-center gap-3">
                 <p className="shrink-0 text-sm font-semibold text-foreground">Level {levelNumber}</p>
-                <Progress value={progressPercent} className="min-w-0 flex-1" aria-label={`${progressPercent.toFixed(0)} percent to next level`} />
+                <Progress value={progressPercent} className="xp-progress min-w-0 flex-1" aria-label={`${progressPercent.toFixed(0)} percent to next level`} />
             </div>
             <div className="flex items-baseline justify-between gap-3 text-xs tabular-nums text-muted-foreground">
                 <span>{totalXp.toLocaleString()} XP</span>

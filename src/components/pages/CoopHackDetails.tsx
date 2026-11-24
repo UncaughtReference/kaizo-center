@@ -6,6 +6,10 @@ import { type CoopHack } from "@/types/CoopHack"
 import { getAuthors } from "@/lib/authors"
 import ProgressSection from "@/components/ProgressSection"
 import HackAuthorActions from "@/components/HackAuthorActions"
+import useDisplayNames from "@/hooks/useDisplayNames"
+import HackReviews from "@/components/HackReviews"
+import CompletionBonus from "@/components/CompletionBonus"
+import { usePageMetadata } from "@/lib/pageMetadata"
 
 function formatDate(value: string) {
     const date = new Date(value)
@@ -120,8 +124,15 @@ export default function CoopHackDetails({ name, onBack, onNavigate }: { name: st
     }, [name])
 
     const videos = hack?.videos?.videos ?? []
+    const authors = useDisplayNames(hack ? getAuthors(hack.authors).map((author) => author.name) : [])
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
+    usePageMetadata({
+        title: hack ? `${hack.name} Co-op | Kaizo Center` : "Co-op hack | Kaizo Center",
+        description: hack
+            ? `Co-op Kaizo hack with ${hack.star_count} stars. View progress, completion XP, and reviews on Kaizo Center.`
+            : "View co-op hack details, progress, completion XP, and reviews on Kaizo Center.",
+    })
 
     async function downloadZip() {
         if (!hack?.zip) return
@@ -171,13 +182,14 @@ export default function CoopHackDetails({ name, onBack, onNavigate }: { name: st
                                 if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
                                 event.preventDefault()
                                 onNavigate(`/profiles/${encodeURIComponent(author.name)}`)
-                            }}>{author.name}</a></span>
+                            }}>{authors[author.name.toLocaleLowerCase()] ?? author.name}</a></span>
                     ))}</p>
                     <p><strong>Difficulty:</strong> {getDifficultyName(hack.difficulty)}</p>
                     <p className="flex items-center gap-1">
                         <img src={`${import.meta.env.BASE_URL}star.webp`} alt="Stars" className="size-6 object-contain" />
                         <span>{hack.star_count}</span>
                     </p>
+                    <CompletionBonus kind="coop" hackName={hack.name} bonus={hack.completion_bonus} onSaved={(completion_bonus) => setHack({ ...hack, completion_bonus })} />
                     <p><strong>Upload date:</strong> {formatDate(hack.upload_date)}</p>
                     <p><strong>Creation date:</strong> {formatDate(hack.creation_date)}</p>
                 </div>
@@ -237,6 +249,8 @@ export default function CoopHackDetails({ name, onBack, onNavigate }: { name: st
                     </div>
                 </section>
             )}
+
+            <HackReviews hackName={hack.name} hackKind="coop" starCount={hack.star_count} />
         </article>
     )
 }

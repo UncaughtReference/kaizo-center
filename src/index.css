@@ -131,3 +131,19 @@
     @apply font-sans;
     }
 }
+
+@keyframes xp-progress-gradient-flow {
+  from { background-position: 0% 50%; }
+  to { background-position: 100% 50%; }
+}
+
+.xp-progress [data-slot="progress-indicator"] {
+  background-size: 200% 100%;
+  animation: xp-progress-gradient-flow 12s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp-progress [data-slot="progress-indicator"] {
+    animation: none;
+  }
+}

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { useProfile } from "@/contexts/ProfileContext"
 import { type Profile, type ProfileRole } from "@/types/Profile"
+import { Search } from "lucide-react"
 
 function getErrorMessage(error: unknown) {
     return error && typeof error === "object" && "message" in error
@@ -47,7 +48,7 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
                 const pageSize = 1000
                 const allProfiles: Profile[] = []
                 for (let from = 0; ; from += pageSize) {
-                    const { data, error: queryError } = await supabase.rpc("get_visible_user_directory", {
+                    const { data, error: queryError } = await supabase.rpc("get_visible_user_directory_with_display_name", {
                         p_offset: from,
                         p_limit: pageSize,
                     })
@@ -79,7 +80,7 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
             if (rpcError) throw rpcError
             if (!data) throw new Error("This user could not be banned. They may be a moderator already.")
             setProfiles((current) => current.map((item) => item.user_id === target.user_id ? { ...item, role: 3 } : item))
-            setActionMessage(`${target.username} has been banned.`)
+            setActionMessage(`${target.display_name?.trim() || target.username} has been banned.`)
         } catch (banError) {
             setError(getErrorMessage(banError))
         } finally {
@@ -90,7 +91,8 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
     const isModerator = profile?.role === 2
     const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
     const filteredProfiles = normalizedQuery
-        ? profiles.filter((person) => person.username.toLocaleLowerCase().includes(normalizedQuery))
+        ? profiles.filter((person) => person.username.toLocaleLowerCase().includes(normalizedQuery)
+            || (person.display_name ?? "").toLocaleLowerCase().includes(normalizedQuery))
         : profiles
 
     if (profileLoading || loading) {
@@ -111,13 +113,17 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
 
             <section className="flex flex-col gap-3" aria-labelledby="users-list-heading">
                 <h2 id="users-list-heading" className="text-3xl font-semibold text-white">Users</h2>
-                <Input
-                    type="search"
-                    aria-label="Search users"
-                    placeholder="Search users by username..."
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                />
+                <div className="relative w-full max-w-xl">
+                    <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        aria-label="Search users"
+                        placeholder="Search users by display name or username..."
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className="h-10 pl-10"
+                    />
+                </div>
                 {profiles.length === 0 ? (
                     <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">No profiles found.</p>
                 ) : filteredProfiles.length === 0 ? (
@@ -128,11 +134,11 @@ export default function Users({ onNavigate }: { onNavigate: (href: string) => vo
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex items-center gap-3">
                                     <Avatar>
-                                        {person.avatar_url && <AvatarImage src={person.avatar_url} alt={`${person.username} avatar`} />}
-                                        <AvatarFallback>{person.username.trim().slice(0, 2).toUpperCase() || "U"}</AvatarFallback>
+                                        {person.avatar_url && <AvatarImage src={person.avatar_url} alt={`${person.display_name?.trim() || person.username} avatar`} />}
+                                        <AvatarFallback>{(person.display_name?.trim() || person.username).trim().slice(0, 2).toUpperCase() || "U"}</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <CardTitle>{person.username}</CardTitle>
+                                        <CardTitle>{person.display_name?.trim() || person.username}</CardTitle>
                                         <CardDescription>
                                             {person.private_xp
                                                 ? "XP is private"

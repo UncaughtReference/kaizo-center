@@ -24,6 +24,8 @@ import type { Hack } from "@/types/Hack"
 import type { CoopHack } from "@/types/CoopHack"
 import type { HackAuthor } from "@/types/HackAuthor"
 import { useProfile } from "@/contexts/ProfileContext"
+import AuthorNameInput from "@/components/AuthorNameInput"
+import { fetchVisibleUsers, type VisibleSiteUser } from "@/lib/userDirectory"
 
 type HackKind = "hack" | "coop"
 type ImageDraft = { id: string; file: File }
@@ -91,6 +93,18 @@ export default function HackSubmissionDialog({
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [previewImage, setPreviewImage] = useState<{ name: string; src: string } | null>(null)
+    const [siteUsers, setSiteUsers] = useState<VisibleSiteUser[]>([])
+
+    useEffect(() => {
+        if (!open) return
+        let isActive = true
+        void fetchVisibleUsers().then((users) => {
+            if (isActive) setSiteUsers(users)
+        }).catch(() => {
+            // Author names remain editable as free text if the directory is unavailable.
+        })
+        return () => { isActive = false }
+    }, [open])
 
     useEffect(() => {
         if (!previewImage) return
@@ -258,6 +272,7 @@ export default function HackSubmissionDialog({
                     authors: cleanAuthors,
                     difficulty: selectedDifficulty,
                     star_count: parsedStarCount,
+                    completion_bonus: null,
                     status: submissionStatus,
                     images: imageData,
                     zip: patchName,
@@ -275,7 +290,7 @@ export default function HackSubmissionDialog({
                     difficulty: selectedDifficulty,
                     star_count: parsedStarCount,
                     status: submissionStatus,
-                    completion_bonus: 0,
+                    completion_bonus: null,
                     images: imageData,
                     bps: patchName,
                     videos: videoData,
@@ -298,7 +313,6 @@ export default function HackSubmissionDialog({
     }
 
     function handleOpenChange(nextOpen: boolean) {
-        if (!nextOpen && !submitting) resetForm()
         setOpen(nextOpen)
     }
 
@@ -306,7 +320,7 @@ export default function HackSubmissionDialog({
         <>
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogTrigger render={<Button type="button" disabled={profileLoading || profile?.role === 3}><Upload />Submit</Button>} />
-            <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto">
+            <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-5xl overflow-y-auto sm:max-w-5xl">
                 <DialogHeader>
                     <DialogTitle>Submit {isCoop ? "a co-op hack" : "a hack"}</DialogTitle>
                 </DialogHeader>
@@ -320,32 +334,34 @@ export default function HackSubmissionDialog({
 
                         <fieldset className="flex flex-col gap-3 sm:col-span-2">
                             <legend className="mb-1 text-sm font-medium">Authors</legend>
-                            {authors.map((author, index) => (
-                                <div key={author.id} className="rounded-lg border p-3">
-                                    <div className="flex items-end gap-2">
-                                        <label className="flex flex-1 flex-col gap-1.5 text-sm">
-                                            Author {index + 1}
-                                            <Input value={author.name} onChange={(event) => updateAuthor(author.id, { name: event.target.value })} maxLength={100} required={index === 0} />
-                                        </label>
-                                        {authors.length > 1 && (
-                                            <Button type="button" variant="outline" size="icon" aria-label={`Remove author ${index + 1}`} onClick={() => setAuthors((current) => current.filter((item) => item.id !== author.id))}>
-                                                <Trash2 />
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-                                        {([
-                                            ["allow_edit", "Allow edit"],
-                                            ["allow_delete", "Allow delete"],
-                                        ] as const).map(([key, label]) => (
-                                            <label key={key} className="flex items-center gap-2 text-sm">
-                                                <Checkbox checked={author[key]} onCheckedChange={(checked) => updateAuthor(author.id, { [key]: checked === true })} />
-                                                {label}
+                            {authors.map((author, index) => {
+                                return (
+                                    <div key={author.id} className="rounded-lg border p-3">
+                                        <div className="flex items-end gap-2">
+                                            <label className="flex flex-1 flex-col gap-1.5 text-sm">
+                                                Author {index + 1}
+                                                <AuthorNameInput value={author.name} onChange={(value) => updateAuthor(author.id, { name: value })} users={siteUsers} required={index === 0} />
                                             </label>
-                                        ))}
+                                            {authors.length > 1 && (
+                                                <Button type="button" variant="outline" size="icon" aria-label={`Remove author ${index + 1}`} onClick={() => setAuthors((current) => current.filter((item) => item.id !== author.id))}>
+                                                    <Trash2 />
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
+                                            {([
+                                                ["allow_edit", "Allow edit"],
+                                                ["allow_delete", "Allow delete"],
+                                            ] as const).map(([key, label]) => (
+                                                <label key={key} className="flex items-center gap-2 text-sm">
+                                                    <Checkbox checked={author[key]} onCheckedChange={(checked) => updateAuthor(author.id, { [key]: checked === true })} />
+                                                    {label}
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                             <Button type="button" variant="outline" className="self-start" onClick={() => setAuthors((current) => [...current, newAuthor()])}>
                                 <Plus />Add author
                             </Button>

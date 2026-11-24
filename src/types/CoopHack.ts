@@ -9,6 +9,7 @@ export type CoopHack = {
     }[],
     difficulty: number,
     star_count: number,
+    completion_bonus: number | null,
     status: 0 | 1 | 2,
     images: { main: string, images?: string[] },
     zip: string,

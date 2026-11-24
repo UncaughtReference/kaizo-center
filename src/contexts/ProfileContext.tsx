@@ -77,7 +77,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
         if (profileError) throw profileError
         const row = Array.isArray(data) ? data[0] : data
-        setProfile((row as Profile | null) ?? null)
+        if (!row) {
+            setProfile(null)
+            return
+        }
+        const { data: displayName, error: displayNameError } = await supabase.rpc("get_my_display_name")
+        if (displayNameError) throw displayNameError
+        setProfile({ ...(row as Profile), display_name: typeof displayName === "string" ? displayName : null })
     }, [user])
 
     useEffect(() => {
@@ -106,7 +112,9 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
                 if (rpcError) throw rpcError
                 const row = Array.isArray(data) ? data[0] : data
                 if (!row) throw new Error("Your profile could not be loaded.")
-                if (isActive) setProfile(row as Profile)
+                const { data: displayName, error: displayNameError } = await supabase.rpc("get_my_display_name")
+                if (displayNameError) throw displayNameError
+                if (isActive) setProfile({ ...(row as Profile), display_name: typeof displayName === "string" ? displayName : null })
             } catch (profileError) {
                 if (isActive) setError(profileError && typeof profileError === "object" && "message" in profileError
                     ? String(profileError.message)

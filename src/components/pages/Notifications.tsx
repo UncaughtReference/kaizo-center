@@ -91,8 +91,8 @@ export default function Notifications({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="bottom" className="w-[min(28rem,90vw)] max-w-none gap-0 p-0">
-                <SheetHeader className="border-b pr-12">
+            <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] w-[min(28rem,90vw)] max-w-none gap-0 overflow-hidden p-0">
+                <SheetHeader className="shrink-0 border-b pr-12">
                     <SheetTitle className="text-xl">Notifications</SheetTitle>
                 </SheetHeader>
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -17,6 +17,8 @@ import { getAuthors } from "@/lib/authors"
 import { useProfile } from "@/contexts/ProfileContext"
 import type { Hack } from "@/types/Hack"
 import type { CoopHack } from "@/types/CoopHack"
+import AuthorNameInput from "@/components/AuthorNameInput"
+import { fetchVisibleUsers, type VisibleSiteUser } from "@/lib/userDirectory"
 
 type Kind = "hack" | "coop"
 type HackRow = Hack | CoopHack
@@ -55,6 +57,18 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
     const [images, setImages] = useState<ImageDraft[]>([])
     const [mainImageId, setMainImageId] = useState("")
     const [downloadFile, setDownloadFile] = useState<File | null>(null)
+    const [siteUsers, setSiteUsers] = useState<VisibleSiteUser[]>([])
+
+    useEffect(() => {
+        if (!editOpen) return
+        let isActive = true
+        void fetchVisibleUsers().then((users) => {
+            if (isActive) setSiteUsers(users)
+        }).catch(() => {
+            // Author names remain editable as free text if the directory is unavailable.
+        })
+        return () => { isActive = false }
+    }, [editOpen])
 
     function openEditor() {
         setAuthors(getAuthors(hack.authors).map((author) => ({ ...author })))
@@ -197,7 +211,7 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
         </div>
         {error && !editOpen && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <Dialog open={editOpen} onOpenChange={(open) => { if (!saving) setEditOpen(open) }}>
-            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+            <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto sm:max-w-3xl">
                 <DialogHeader><DialogTitle>Edit {kind === "coop" ? "co-op " : ""}hack</DialogTitle></DialogHeader>
                 <form className="flex flex-col gap-5" onSubmit={(event) => void save(event)}>
                     <fieldset className="flex flex-col gap-3">
@@ -206,7 +220,7 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
                             <div className="flex items-end gap-2">
                                 <label className="flex flex-1 flex-col gap-1.5 text-sm">
                                     Author {index + 1}
-                                    <Input value={author.name} onChange={(event) => setAuthors((current) => current.map((item, i) => i === index ? { ...item, name: event.target.value } : item))} maxLength={100} required={index === 0} />
+                                    <AuthorNameInput value={author.name} onChange={(value) => setAuthors((current) => current.map((item, i) => i === index ? { ...item, name: value } : item))} users={siteUsers} required={index === 0} />
                                 </label>
                                 {authors.length > 1 && <Button type="button" variant="outline" size="icon" aria-label={`Remove author ${index + 1}`} onClick={() => setAuthors((current) => current.filter((_, i) => i !== index))}><Trash2 /></Button>}
                             </div>

@@ -85,23 +85,23 @@ begin
 
     if p_kind = 'hack' then
         update public.hacks h set
-            authors = case when p_data ? 'authors' then p_data->'authors' else h.authors end,
+            authors = case when p_data ? 'authors' then (p_data->'authors')::json else h.authors end,
             description = case when p_data ? 'description' then p_data->>'description' else h.description end,
             difficulty = case when p_data ? 'difficulty' then (p_data->>'difficulty')::smallint else h.difficulty end,
             star_count = case when p_data ? 'star_count' then (p_data->>'star_count')::smallint else h.star_count end,
             creation_date = case when p_data ? 'creation_date' then (p_data->>'creation_date')::timestamptz else h.creation_date end,
-            videos = case when p_data ? 'videos' then p_data->'videos' else h.videos end,
-            images = case when p_data ? 'images' then p_data->'images' else h.images end,
+            videos = case when p_data ? 'videos' then (p_data->'videos')::json else h.videos end,
+            images = case when p_data ? 'images' then (p_data->'images')::json else h.images end,
             bps = case when p_data ? 'bps' then p_data->>'bps' else h.bps end
         where h.id = p_id returning to_jsonb(h) into v_hack;
     else
         update public.coop_hacks h set
-            authors = case when p_data ? 'authors' then p_data->'authors' else h.authors end,
+            authors = case when p_data ? 'authors' then (p_data->'authors')::json else h.authors end,
             difficulty = case when p_data ? 'difficulty' then (p_data->>'difficulty')::smallint else h.difficulty end,
             star_count = case when p_data ? 'star_count' then (p_data->>'star_count')::smallint else h.star_count end,
             creation_date = case when p_data ? 'creation_date' then (p_data->>'creation_date')::timestamptz else h.creation_date end,
-            videos = case when p_data ? 'videos' then p_data->'videos' else h.videos end,
-            images = case when p_data ? 'images' then p_data->'images' else h.images end,
+            videos = case when p_data ? 'videos' then (p_data->'videos')::json else h.videos end,
+            images = case when p_data ? 'images' then (p_data->'images')::json else h.images end,
             zip = case when p_data ? 'zip' then p_data->>'zip' else h.zip end
         where h.name = p_name returning to_jsonb(h) into v_hack;
     end if;

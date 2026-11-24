@@ -6,6 +6,7 @@ import { useProfile } from "@/contexts/ProfileContext"
 import HackStatusBadge from "@/components/HackStatusBadge"
 import { supabase } from "@/lib/supabase"
 import type { HackProgress } from "@/types/Progress"
+import { resolveProfileDisplayNames } from "@/lib/displayNames"
 
 function getErrorMessage(error: unknown) {
     return error && typeof error === "object" && "message" in error
@@ -19,9 +20,11 @@ function formatSubmittedDate(value: string) {
     return date.toLocaleString()
 }
 
+type ProgressSubmission = HackProgress & { hack_star_count?: number }
+
 export default function ProgressSubmissions({ onNavigate }: { onNavigate: (href: string) => void }) {
     const { profile, loading: profileLoading } = useProfile()
-    const [submissions, setSubmissions] = useState<HackProgress[]>([])
+    const [submissions, setSubmissions] = useState<ProgressSubmission[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [workingId, setWorkingId] = useState<number | null>(null)
@@ -52,7 +55,33 @@ export default function ProgressSubmissions({ onNavigate }: { onNavigate: (href:
                     allSubmissions.push(...page)
                     if (page.length < pageSize) break
                 }
-                if (isActive) setSubmissions(allSubmissions)
+                const hackNames = [...new Set(allSubmissions.filter((entry) => entry.hack_kind === "hack").map((entry) => entry.hack_name))]
+                const coopHackNames = [...new Set(allSubmissions.filter((entry) => entry.hack_kind === "coop").map((entry) => entry.hack_name))]
+                const [hacksResult, coopHacksResult] = await Promise.all([
+                    hackNames.length
+                        ? supabase.from("hacks").select("name, star_count").in("name", hackNames)
+                        : Promise.resolve({ data: [], error: null }),
+                    coopHackNames.length
+                        ? supabase.from("coop_hacks").select("name, star_count").in("name", coopHackNames)
+                        : Promise.resolve({ data: [], error: null }),
+                ])
+                if (hacksResult.error) throw hacksResult.error
+                if (coopHacksResult.error) throw coopHacksResult.error
+                const hackStarCounts = new Map([
+                    ...(hacksResult.data ?? []).map((hack) => [`hack:${hack.name}`, hack.star_count] as const),
+                    ...(coopHacksResult.data ?? []).map((hack) => [`coop:${hack.name}`, hack.star_count] as const),
+                ])
+                const names = await resolveProfileDisplayNames(allSubmissions.flatMap((entry) => [
+                    ...(entry.username ? [entry.username] : []),
+                    ...(entry.helper_names ?? []),
+                ]))
+                const withDisplayNames = allSubmissions.map((entry) => ({
+                    ...entry,
+                    hack_star_count: hackStarCounts.get(`${entry.hack_kind}:${entry.hack_name}`),
+                    username: entry.username ? names.get(entry.username.toLocaleLowerCase()) ?? entry.username : entry.username,
+                    helper_names: entry.helper_names?.map((name) => names.get(name.toLocaleLowerCase()) ?? name),
+                }))
+                if (isActive) setSubmissions(withDisplayNames)
             } catch (loadError) {
                 if (isActive) setError(getErrorMessage(loadError))
             } finally {
@@ -117,7 +146,11 @@ export default function ProgressSubmissions({ onNavigate }: { onNavigate: (href:
                             <HackStatusBadge status={submission.status} />
                         </div>
                         <CardDescription>
-                            {submission.star_count} {submission.star_count === 1 ? "star" : "stars"} collected · Submitted {formatSubmittedDate(submission.created_at)}
+                            <span className="inline-flex items-center gap-1">
+                                {submission.star_count} / {submission.hack_star_count ?? "?"}
+                                <img src={`${import.meta.env.BASE_URL}star.webp`} alt="stars" className="h-4 w-4 object-contain" />
+                            </span>
+                            <span>· Submitted {formatSubmittedDate(submission.created_at)}</span>
                         </CardDescription>
                         {!!submission.helper_names?.length && <p className="text-xs text-muted-foreground">Helpers: {submission.helper_names.join(", ")}</p>}
                     </CardHeader>
