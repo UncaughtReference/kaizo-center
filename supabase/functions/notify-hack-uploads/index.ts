@@ -86,46 +86,97 @@ Deno.serve(async (req: Request) => {
         payload.type === "INSERT" ||
         (typeof previousStatus === "number" && previousStatus !== PUBLIC_STATUS)
     )
-    if (!becamePublic) return jsonResponse("No public release to announce", 200)
+
+    const becamePending = record.status === 1 && (
+    payload.type === "INSERT" ||
+    (typeof previousStatus === "number" && previousStatus !== 1))
 
     const discordBotToken = Deno.env.get("DISCORD_BOT_TOKEN")
-    const discordChannelId = Deno.env.get("DISCORD_CHANNEL_ID")
     const siteUrl = Deno.env.get("HACK_SITE_URL")?.replace(/\/+$/, "")
-    if (!discordBotToken || !discordChannelId || !/^\d{17,20}$/.test(discordChannelId) || !siteUrl) {
-        console.error("Missing or invalid Discord bot, channel, or public site configuration.")
-        return jsonResponse("Notification service is not configured", 500)
-    }
 
-    const isCoop = payload.table === "coop_hacks"
-    const kindLabel = isCoop ? "Co-op hack" : "Hack"
-    const route = isCoop ? "coop-hacks" : "hacks"
-    const displayName = record.name.length > 300 ? `${record.name.slice(0, 297)}...` : record.name
-    const hackUrl = `${siteUrl}/${route}/${encodeURIComponent(record.name)}`
-    const starCount = typeof record.star_count === "number" ? record.star_count : "?"
-    const difficulty = getDifficultyName(record.difficulty)
-    const content = `New ${kindLabel} released: **${displayName}**\nDifficulty: ${difficulty}\n\u{2B50} ${starCount}\n${hackUrl}`
-
-    try {
-        const discordResponse = await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bot ${discordBotToken}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                content,
-                allowed_mentions: { parse: [] }, // prevent pings
-            }),
-        })
-
-        if (!discordResponse.ok) {
-            console.error(`Discord bot message failed with HTTP ${discordResponse.status}.`)
-            return jsonResponse("Failed to send Discord notification", 502)
+    if (!becamePublic) {
+        if (!becamePending) {
+            return jsonResponse("No notification needed for this event", 200)
         }
 
-        return jsonResponse("Notification sent", 200)
-    } catch (error) {
-        console.error("Error sending Discord notification:", error)
-        return jsonResponse("Internal server error", 500)
+        const discordChannelId = Deno.env.get("DISCORD_PENDING_CHANNEL_ID")
+
+        if (!discordBotToken || !discordChannelId || !/^\d{17,20}$/.test(discordChannelId) || !siteUrl) {
+            console.error("Missing or invalid Discord bot, channel, or public site configuration.")
+            return jsonResponse("Notification service is not configured", 500)
+        }
+
+        const isCoop = payload.table === "coop_hacks"
+        const kindLabel = isCoop ? "Co-op hack" : "Hack"
+        const route = isCoop ? "coop-hacks" : "hacks"
+        const displayName = record.name.length > 300 ? `${record.name.slice(0, 297)}...` : record.name
+        const hackUrl = `${siteUrl}/${route}/${encodeURIComponent(record.name)}`
+        const starCount = typeof record.star_count === "number" ? record.star_count : "?"
+        const difficulty = getDifficultyName(record.difficulty)
+        const content = `New ${kindLabel} is pending: **${displayName}**\nDifficulty: ${difficulty}\n\u{2B50} ${starCount}\n${hackUrl}`
+
+        try {
+            const discordResponse = await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bot ${discordBotToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    content,
+                    allowed_mentions: { parse: [] }, // prevent pings
+                }),
+            })
+
+            if (!discordResponse.ok) {
+                console.error(`Discord bot message failed with HTTP ${discordResponse.status}.`)
+                return jsonResponse("Failed to send Discord notification", 502)
+            }
+
+            return jsonResponse("Notification sent", 200)
+        } catch (error) {
+            console.error("Error sending Discord notification:", error)
+            return jsonResponse("Internal server error", 500)
+        }        
+    } else {
+        const discordChannelId = Deno.env.get("DISCORD_CHANNEL_ID")
+
+        if (!discordBotToken || !discordChannelId || !/^\d{17,20}$/.test(discordChannelId) || !siteUrl) {
+            console.error("Missing or invalid Discord bot, channel, or public site configuration.")
+            return jsonResponse("Notification service is not configured", 500)
+        }
+
+        const isCoop = payload.table === "coop_hacks"
+        const kindLabel = isCoop ? "Co-op hack" : "Hack"
+        const route = isCoop ? "coop-hacks" : "hacks"
+        const displayName = record.name.length > 300 ? `${record.name.slice(0, 297)}...` : record.name
+        const hackUrl = `${siteUrl}/${route}/${encodeURIComponent(record.name)}`
+        const starCount = typeof record.star_count === "number" ? record.star_count : "?"
+        const difficulty = getDifficultyName(record.difficulty)
+        const content = `New ${kindLabel} released: **${displayName}**\nDifficulty: ${difficulty}\n\u{2B50} ${starCount}\n${hackUrl}`
+
+        try {
+            const discordResponse = await fetch(`https://discord.com/api/v10/channels/${discordChannelId}/messages`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bot ${discordBotToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    content,
+                    allowed_mentions: { parse: [] }, // prevent pings
+                }),
+            })
+
+            if (!discordResponse.ok) {
+                console.error(`Discord bot message failed with HTTP ${discordResponse.status}.`)
+                return jsonResponse("Failed to send Discord notification", 502)
+            }
+
+            return jsonResponse("Notification sent", 200)
+        } catch (error) {
+            console.error("Error sending Discord notification:", error)
+            return jsonResponse("Internal server error", 500)
+        }
     }
 })
