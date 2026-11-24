@@ -15,8 +15,8 @@ type News = {
 const communityNews: News[] = [
     {
         date_posted: "24-11-2026",
-        title: "Test news",
-        post: <p>Test news</p>
+        title: "Kaizo Center is now open!",
+        post: <p>This was a fairly big project but it took much less time than anticipated! I hope this site will be useful for the community, especially the co-op side. Have fun! 💜</p>
     }
 ]
 
