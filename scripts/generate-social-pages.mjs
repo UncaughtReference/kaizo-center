@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+import { createClient } from "@supabase/supabase-js"
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const distRoot = path.join(projectRoot, "dist")
@@ -15,6 +16,7 @@ if (!supabaseUrl || !publishableKey) {
 const repository = process.env.GITHUB_REPOSITORY || "UncaughtReference/kaizo-center"
 const [owner, repo] = repository.split("/")
 const siteBase = (process.env.VITE_SITE_URL || `https://${owner.toLowerCase()}.github.io/${repo}/`).replace(/\/$/, "")
+const supabase = createClient(supabaseUrl, publishableKey)
 const basePath = "/kaizo-center/"
 const template = await readFile(path.join(distRoot, "index.html"), "utf8")
 function escapeHtml(value) {
@@ -89,17 +91,12 @@ async function signedHackImages(hackName, imageData) {
     const signedImages = []
     for (const filename of filenames) {
         const objectPath = `${hackName}/${filename}`
-        const encodedPath = objectPath.split("/").map(encodeURIComponent).join("/")
         try {
-            const result = await request(`/storage/v1/object/sign/hack_images/${encodedPath}`, {
-                method: "POST",
-                body: JSON.stringify({ expiresIn: 31_536_000 }),
-            })
-            const signedUrl = result.signedURL || result.signedUrl
-            if (!signedUrl) continue
-            signedImages.push(signedUrl.startsWith("http")
-                ? signedUrl
-                : `${supabaseUrl}${signedUrl.startsWith("/storage/v1") ? "" : "/storage/v1"}${signedUrl}`)
+            const { data, error } = await supabase.storage
+                .from("hack_images")
+                .createSignedUrl(objectPath, 31_536_000)
+            if (error) throw error
+            if (data?.signedUrl) signedImages.push(data.signedUrl)
         } catch (error) {
             console.warn(`Could not sign hack image ${objectPath}: ${error.message}`)
         }
