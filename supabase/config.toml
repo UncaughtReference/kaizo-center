@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.create-hack-upload-url]
 verify_jwt = false
+
+[functions.notify-hack-uploads]
+verify_jwt = false
