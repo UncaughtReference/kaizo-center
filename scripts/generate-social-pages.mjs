@@ -25,6 +25,10 @@ function escapeHtml(value) {
     })[character])
 }
 
+function escapeAttribute(value) {
+    return escapeHtml(value).replace(/\r?\n/g, "&#10;")
+}
+
 async function request(pathname, options = {}) {
     const response = await fetch(`${supabaseUrl}${pathname}`, {
         ...options,
@@ -55,7 +59,7 @@ function routeSegment(value) {
     return name
 }
 
-async function writeRoute(route, title, image = null) {
+async function writeRoute(route, title, image = null, description = null) {
     const segments = route.split("/")
     const target = path.resolve(distRoot, ...segments, "index.html")
     if (!target.startsWith(`${distRoot}${path.sep}`)) return
@@ -64,12 +68,15 @@ async function writeRoute(route, title, image = null) {
     const shareImages = [...new Set((Array.isArray(image) ? image : [image]).filter(Boolean))]
     if (!shareImages.length) shareImages.push(`${siteBase}${basePath}logo.png`)
     const titleValue = escapeHtml(title)
+    const descriptionTags = description
+        ? `    <meta name="description" content="${escapeAttribute(description)}" />\n    <meta property="og:description" content="${escapeAttribute(description)}" />\n    <meta name="twitter:description" content="${escapeAttribute(description)}" />\n`
+        : ""
     const imageTags = shareImages.map((source) => `    <meta property="og:image" content="${escapeHtml(source)}" />`).join("\n")
     const firstImage = escapeHtml(shareImages[0])
     const metadata = `<!-- SOCIAL_METADATA_START -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="${titleValue}" />
-    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
+${descriptionTags}    <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
 ${imageTags}
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${titleValue}" />
@@ -114,13 +121,13 @@ try {
         const name = routeSegment(hack.name)
         if (!name) continue
         const images = await signedHackImages(name, hack.images)
-        await writeRoute(`hacks/${name}`, `${name} · ${difficultyName(hack.difficulty)} | Kaizo Center`, images)
+        await writeRoute(`hacks/${name}`, `${name} | Kaizo Center`, images, `Difficulty: ${difficultyName(hack.difficulty)}\n⭐ ${hack.star_count}`)
     }
     for (const hack of coopHacks) {
         const name = routeSegment(hack.name)
         if (!name) continue
         const images = await signedHackImages(name, hack.images)
-        await writeRoute(`coop-hacks/${name}`, `${name} Co-op · ${difficultyName(hack.difficulty)} | Kaizo Center`, images)
+        await writeRoute(`coop-hacks/${name}`, `${name} Co-op | Kaizo Center`, images, `Difficulty: ${difficultyName(hack.difficulty)}\n⭐ ${hack.star_count}`)
     }
 
     const profiles = []

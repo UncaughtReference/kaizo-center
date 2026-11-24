@@ -154,7 +154,8 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
     usePageMetadata({
-        title: hack ? `${hack.name} · ${getDifficultyName(hack.difficulty)} | Kaizo Center` : "Hack | Kaizo Center",
+        title: hack ? `${hack.name} | Kaizo Center` : "Hack | Kaizo Center",
+        description: hack ? `Difficulty: ${getDifficultyName(hack.difficulty)}\n⭐ ${hack.star_count}` : null,
         image: mainImage?.url,
         images: [mainImage?.url, ...galleryImages.map((galleryImage) => galleryImage.url)].filter((url): url is string => Boolean(url)),
     })

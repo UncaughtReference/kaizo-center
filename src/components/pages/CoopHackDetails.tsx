@@ -128,7 +128,8 @@ export default function CoopHackDetails({ name, onBack, onNavigate }: { name: st
     const mainImage = imageUrls.find((image) => image.isMain)
     const galleryImages = imageUrls.filter((image) => !image.isMain)
     usePageMetadata({
-        title: hack ? `${hack.name} Co-op · ${getDifficultyName(hack.difficulty)} | Kaizo Center` : "Co-op hack | Kaizo Center",
+        title: hack ? `${hack.name} Co-op | Kaizo Center` : "Co-op hack | Kaizo Center",
+        description: hack ? `Difficulty: ${getDifficultyName(hack.difficulty)}\n⭐ ${hack.star_count}` : null,
         image: mainImage?.url,
         images: [mainImage?.url, ...galleryImages.map((galleryImage) => galleryImage.url)].filter((url): url is string => Boolean(url)),
     })
