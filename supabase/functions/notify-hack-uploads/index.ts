@@ -33,16 +33,12 @@ function getDifficultyName(value: unknown) {
 }
 
 function isAuthorizedWebhook(req: Request) {
-    // Custom HTTP Request webhooks can use this dedicated shared-secret header.
     const expectedWebhookSecret = Deno.env.get("HACK_WEBHOOK_SECRET")
     if (
         expectedWebhookSecret &&
         req.headers.get("X-Hack-Webhook-Secret") === expectedWebhookSecret
     ) return true
 
-    // The Dashboard's "Supabase Edge Functions > Add secret key" option sends
-    // the project's default secret key in `apikey`. Supabase provides the key
-    // values to Edge Functions in this built-in environment variable.
     const suppliedApiKey = req.headers.get("apikey")
     if (!suppliedApiKey) return false
     try {

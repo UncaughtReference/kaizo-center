@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.notify-hack-uploads]
 verify_jwt = false
+
+[functions.delete-authored-hack]
+verify_jwt = false

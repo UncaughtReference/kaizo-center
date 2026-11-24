@@ -188,13 +188,17 @@ export default function HackAuthorActions({ kind, hack, onUpdated, onDeleted }: 
         setError(null)
         setDeleting(true)
         try {
-            const { data, error: rpcError } = await supabase.rpc("delete_authored_hack", {
-                p_kind: kind,
-                p_id: kind === "hack" ? (hack as Hack).id : null,
-                p_name: hack.name,
+            const { data, error: deleteError } = await supabase.functions.invoke<{
+                deleted: boolean
+                cleanupComplete: boolean
+            }>("delete-authored-hack", {
+                body: { kind, name: hack.name },
             })
-            if (rpcError) throw rpcError
-            if (data !== true) throw new Error("The hack was not deleted.")
+            if (deleteError) throw deleteError
+            if (!data?.deleted) throw new Error("The hack was not deleted.")
+            if (!data.cleanupComplete) {
+                window.alert("The hack was deleted, but some stored files could not be removed. Please contact a moderator.")
+            }
             onDeleted()
         } catch (deleteError) {
             setError(getMessage(deleteError))

@@ -2,14 +2,12 @@ import { Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import CoopHackCard from "@/components/CoopHackCard"
 import { supabase } from "@/lib/supabase"
 import { type CoopHack } from "@/types/CoopHack"
 import { getAuthors } from "@/lib/authors"
 import HackSubmissionDialog from "@/components/HackSubmissionDialog"
 import { useProfile } from "@/contexts/ProfileContext"
-import HackStatusBadge from "@/components/HackStatusBadge"
 import HackSortSelect from "@/components/HackSortSelect"
 import { sortHacks, type HackSortOption } from "@/lib/hackSorting"
 import { Separator } from "../ui/separator"
@@ -131,19 +129,19 @@ export default function CoopHacks({ onNavigate }: { onNavigate: (href: string) =
                     {loading ? <p className="text-sm text-muted-foreground">Loading review queue...</p> : hacks.filter((hack) => hack.status === 1 || hack.status === 2).length === 0 ? (
                         <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">No co-op hack submissions need review.</p>
                     ) : hacks.filter((hack) => hack.status === 1 || hack.status === 2).map((hack) => (
-                        <Card key={`review-${hack.name}`}>
-                            <CardHeader className="p-3 sm:p-4">
-                                <div className="flex flex-wrap items-center justify-between gap-3">
-                                    <CardTitle className="break-words text-base sm:text-lg">{hack.name}</CardTitle>
-                                    <HackStatusBadge status={hack.status} />
-                                </div>
-                                <CardDescription className="break-words">{getAuthors(hack.authors).map((author) => author.name).join(", ")}</CardDescription>
-                            </CardHeader>
-                            <CardFooter className="gap-2 p-3 sm:p-4">
+                        <div key={`review-${hack.name}`} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="min-w-0 flex-1">
+                                <CoopHackCard
+                                    hack={hack}
+                                    onNavigate={onNavigate}
+                                    showStatus
+                                />
+                            </div>
+                            <div className="flex shrink-0 gap-2 sm:flex-col">
                                 <Button className="flex-1 sm:flex-none" disabled={workingName === hack.name} onClick={() => void moderateHack(hack, 0)}>Approve</Button>
                                 <Button className="flex-1 sm:flex-none" variant="destructive" disabled={workingName === hack.name} onClick={() => void moderateHack(hack, 2)}>Reject</Button>
-                            </CardFooter>
-                        </Card>
+                            </div>
+                        </div>
                     ))}
                     <Separator className="mt-2" />
                 </section>

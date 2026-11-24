@@ -15,11 +15,15 @@ import { setPageMetadata } from "@/lib/pageMetadata"
 
 import { useEffect, useState } from 'react'
 
+import { TriangleExclamationPoint } from "lucide-react"
+
 const appBase = import.meta.env.BASE_URL.replace(/\/$/, "")
 const routeFromLocation = () => {
     const pathname = window.location.pathname.replace(/\/$/, "") || "/"
     return (appBase && pathname.startsWith(appBase) ? pathname.slice(appBase.length) : pathname) || "/"
 }
+
+const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === "true"
 
 export default function App() {
     // wall of stateeee
@@ -81,22 +85,31 @@ export default function App() {
     return (<main className="min-h-svh animated-gradient dark">
         <SidebarProvider>
           <ProfileProvider>
-            <div className="flex min-h-svh w-full">
-
-                <Navbar onNavigate={navigate} />
-                <div className="min-w-0 flex-1 p-4">
-                    <div className="fixed top-2 left-2 z-50 md:hidden">
-                        <SidebarTrigger className="bg-background shadow-md" />
+            <div className="flex min-h-svh w-full flex-col">
+                {MAINTENANCE_MODE && (
+                    <div
+                        role="status"
+                        className="w-full shrink-0 border-b border-amber-300/40 bg-amber-400 px-4 py-2 text-center text-sm font-semibold text-amber-950"
+                    >
+                        <TriangleExclamationPoint className="inline-block mr-2" /> <p className="inline">The site is under maintenance, some features may be unavailable. Sorry!!</p>
                     </div>
-                    {profileUsername ? <ProfileDetails username={profileUsername} onNavigate={navigate} />
-                        : coopHackName ? <CoopHackDetails name={coopHackName} onBack={() => backFromDetails("/coop-hacks")} onNavigate={navigate} />
-                        : hackName ? <HackDetails name={hackName} onBack={() => backFromDetails("/hacks")} onNavigate={navigate} />
-                        : pathname === "/coop-hacks" ? <CoopHacks onNavigate={navigate} />
-                        : pathname === "/account" ? <Account onNavigate={navigate} />
-                            : pathname === "/users" ? <Users onNavigate={navigate} />
-                            : pathname === "/progress-submissions" ? <ProgressSubmissions onNavigate={navigate} />
-                            : pathname === "/hacks" ? <Hacks onNavigate={navigate} />
-                                : <Home onNavigate={navigate} />}
+                )}
+                <div className="flex min-h-0 w-full flex-1">
+                    <Navbar onNavigate={navigate} />
+                    <div className="min-w-0 flex-1 p-4">
+                        <div className="fixed top-2 left-2 z-50 md:hidden">
+                            <SidebarTrigger className="bg-background shadow-md" />
+                        </div>
+                        {profileUsername ? <ProfileDetails username={profileUsername} onNavigate={navigate} />
+                            : coopHackName ? <CoopHackDetails name={coopHackName} onBack={() => backFromDetails("/coop-hacks")} onNavigate={navigate} />
+                            : hackName ? <HackDetails name={hackName} onBack={() => backFromDetails("/hacks")} onNavigate={navigate} />
+                            : pathname === "/coop-hacks" ? <CoopHacks onNavigate={navigate} />
+                            : pathname === "/account" ? <Account onNavigate={navigate} />
+                                : pathname === "/users" ? <Users onNavigate={navigate} />
+                                : pathname === "/progress-submissions" ? <ProgressSubmissions onNavigate={navigate} />
+                                : pathname === "/hacks" ? <Hacks onNavigate={navigate} />
+                                    : <Home onNavigate={navigate} />}
+                    </div>
                 </div>
             </div>
           </ProfileProvider>
