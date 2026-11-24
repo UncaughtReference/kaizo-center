@@ -201,8 +201,9 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
         <article className="mx-auto flex max-w-5xl flex-col gap-6 py-8">
             <div><Button variant="outline" onClick={onBack}><ArrowLeft />Back</Button></div>
             <header className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                {mainImage && <img src={mainImage.url} alt={`${hack.name} cover`} className="max-h-80 max-w-full rounded-xl object-contain sm:max-w-sm" />}
-                <div className="flex flex-col gap-2">
+                <div className="relative isolate w-full items-center gap-3 md:flex">
+                {mainImage && <img src={mainImage.url} alt={`${hack.name} cover`} className="relative z-10 max-h-100 min-w-0 max-w-full shrink rounded-xl object-contain sm:max-h-80 md:max-w-[55%] lg:max-h-100 lg:max-w-[60%] xl:max-w-[65%]" />}
+                <div className="relative z-0 flex min-w-0 flex-1 flex-col gap-2 rounded-xl px-4 py-3 lg:before:absolute lg:before:-inset-y-3 lg:before:-left-8 lg:before:-right-8 lg:before:-z-10 lg:before:rounded-2xl lg:before:border lg:before:border-white lg:before:bg-gradient-to-br lg:before:from-violet-500/35 lg:before:via-pink-500/25 lg:before:to-blue-500/35 lg:before:content-['']">
                     <h1 className="text-3xl font-bold tracking-tight text-white">{hack.name}</h1>
                     <p><strong>Authors:</strong> {getAuthors(hack.authors).map((author, index) => (
                         <span key={`${author.name}-${index}`}>{index > 0 && ", "}<a href={`${import.meta.env.BASE_URL.replace(/\/$/, "")}/profiles/${encodeURIComponent(author.name)}`} className="text-primary underline" onClick={(event) => {
@@ -236,6 +237,7 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
                     <p><strong>Upload date:</strong> {formatDate(hack.upload_date)}</p>
                     <p><strong>Creation date:</strong> {formatDate(hack.creation_date)}</p>
                 </div>
+                </div>
             </header>
 
             <HackAuthorActions kind="hack" hack={hack} onUpdated={(updated) => setHack(updated as Hack)} onDeleted={onBack} />
@@ -245,20 +247,26 @@ export default function HackDetails({ name, onBack, onNavigate }: { name: string
                 <p className="whitespace-pre-wrap">{hack.description || "No description provided."}</p>
             </section>
 
-            <ProgressSection hackName={hack.name} hackKind="hack" starCount={hack.star_count} />
-
             <section className="flex flex-col gap-2">
                 <h2 className="text-xl font-semibold">BPS patch</h2>
                 {hack.bps ? (
                     <div className="flex flex-col items-start gap-2">
                         <p>{hack.bps}</p>
-                        <Button onClick={() => void downloadPatch()} disabled={downloading}>
-                            <Download />{downloading ? "Preparing download..." : "Download"}
-                        </Button>
+                        <div className="inline-flex rounded-lg bg-gradient-to-r from-pink-500 via-blue-500 to-green-400 p-[2px]">
+                            <Button
+                                onClick={() => void downloadPatch()}
+                                disabled={downloading}
+                                className="h-15 w-70 rounded-md bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 text-xl text-white"
+                            >
+                                <Download className="size-7" />{downloading ? "Preparing download..." : "Download"}
+                            </Button>
+                        </div>
                         {downloadError && <p role="alert" className="text-sm text-destructive">{downloadError}</p>}
                     </div>
                 ) : <p>No BPS patch available.</p>}
             </section>
+
+            <ProgressSection hackName={hack.name} hackKind="hack" starCount={hack.star_count} />
 
             <section className="flex flex-col gap-3">
                 <h2 className="text-xl font-semibold">Videos</h2>
