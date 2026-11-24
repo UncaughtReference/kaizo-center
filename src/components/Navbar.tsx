@@ -54,8 +54,11 @@ export default function Navbar({ onNavigate }: { onNavigate: (href: string) => v
             <div className="bg-background">
                 <Sidebar>
                     <SidebarHeader>
-                        <div className="flex gap-2 items-center">
+                        <div className="flex w-full items-center gap-2">
                             <img src={`${import.meta.env.BASE_URL}logo.png`} className="w-[30px]" />Kaizo Center
+                            <a className="ml-auto" href="https://discord.gg/k48tMg8C5Q" target="_blank" rel="noopener noreferrer" aria-label="Join our Discord">
+                                <img src={`${import.meta.env.BASE_URL}discord-icon.svg`} alt="Discord" className="w-[30px]" />
+                            </a>
                         </div>
                     </SidebarHeader>
                     <SidebarContent>
